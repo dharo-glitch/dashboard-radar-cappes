@@ -1,560 +1,1273 @@
 <!DOCTYPE html>
-<html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Dashboard Ejecutivo RADAR CAPPES</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Ejecutivo RADAR CAPPES</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&amp;family=DM+Mono:wght@300;400;500&amp;family=DM+Sans:wght@300;400;500&amp;display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --surface2: #18181f;
+    --border: rgba(255,255,255,0.07);
+    --accent: #c8ff00;
+    --accent2: #00d4ff;
+    --accent3: #ff6b35;
+    --text: #f0f0f0;
+    --text-dim: #888;
+    --text-dimmer: #444;
+    --green: #4ade80;
+    --red: #f87171;
+    --yellow: #fbbf24;
+  }
 
-  <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
 
-  <!-- PapaParse -->
-  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
 
-  <style>
+  /* Grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(200,255,0,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(200,255,0,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
 
-    *{
-      margin:0;
-      padding:0;
-      box-sizing:border-box;
-      font-family:Arial, sans-serif;
-    }
+  .container {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 40px 32px;
+    position: relative;
+    z-index: 1;
+  }
 
-    body{
-      background:#0f172a;
-      color:#f1f5f9;
-      padding:24px;
-    }
+  /* HEADER */
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 48px;
+    padding-bottom: 32px;
+    border-bottom: 1px solid var(--border);
+  }
 
-    .header{
-      margin-bottom:30px;
-    }
+  .header-left {}
 
-    .header h1{
-      font-size:32px;
-      margin-bottom:10px;
-    }
+  .brand-tag {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
 
-    .header p{
-      color:#94a3b8;
-      font-size:15px;
-    }
+  .brand-tag::before {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
 
-    .kpi-grid{
-      display:grid;
-      grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
-      gap:20px;
-      margin-bottom:30px;
-    }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
 
-    .card{
-      background:#1e293b;
-      border-radius:14px;
-      padding:22px;
-      box-shadow:0 4px 12px rgba(0,0,0,0.25);
-    }
+  h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: 36px;
+    font-weight: 800;
+    letter-spacing: -1px;
+    line-height: 1.1;
+    color: var(--text);
+  }
 
-    .card h3{
-      font-size:14px;
-      color:#94a3b8;
-      margin-bottom:10px;
-      text-transform:uppercase;
-      letter-spacing:1px;
-    }
+  h1 span {
+    color: var(--accent);
+  }
 
-    .card .value{
-      font-size:34px;
-      font-weight:bold;
-      color:#ffffff;
-    }
+  .header-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 12px;
+  }
 
-    .card .variation{
-      margin-top:10px;
-      font-size:14px;
-      font-weight:bold;
-    }
+  .last-update {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+  }
 
-    .positive{
-      color:#22c55e;
-    }
+  /* FILTERS */
+  .filters {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 40px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
 
-    .negative{
-      color:#ef4444;
-    }
+  .filter-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-right: 4px;
+  }
 
-    .section{
-      margin-bottom:30px;
-    }
+  .filter-group {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
 
-    .section-title{
-      margin-bottom:18px;
-      font-size:22px;
-      font-weight:bold;
-    }
+  .filter-btn {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    padding: 8px 16px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-dim);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.5px;
+  }
 
-    .hallazgos{
-      background:#1e293b;
-      border-radius:14px;
-      padding:24px;
-      line-height:1.8;
-    }
+  .filter-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
 
-    .hallazgos ul{
-      padding-left:20px;
-    }
+  .filter-btn.active {
+    background: var(--accent);
+    color: #000;
+    border-color: var(--accent);
+    font-weight: 500;
+  }
 
-    .hallazgos li{
-      margin-bottom:10px;
-    }
+  .filter-divider {
+    width: 1px;
+    height: 32px;
+    background: var(--border);
+    margin: 0 4px;
+  }
 
-    .charts-grid{
-      display:grid;
-      grid-template-columns:repeat(auto-fit,minmax(450px,1fr));
-      gap:20px;
-    }
+  /* KPI GRID */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 32px;
+  }
 
-    canvas{
-      background:#1e293b;
-      border-radius:14px;
-      padding:16px;
-    }
+  .kpi-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
 
-    .footer{
-      margin-top:40px;
-      text-align:center;
-      color:#64748b;
-      font-size:13px;
-    }
+  .kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
 
-    @media(max-width:768px){
-      .charts-grid{
-        grid-template-columns:1fr;
-      }
-    }
+  .kpi-card:hover { border-color: rgba(200,255,0,0.3); }
+  .kpi-card:hover::before { opacity: 1; }
 
-  </style>
+  .kpi-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 12px;
+  }
+
+  .kpi-value {
+    font-family: 'Syne', sans-serif;
+    font-size: 38px;
+    font-weight: 800;
+    color: var(--text);
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+
+  .kpi-value.accent { color: var(--accent); }
+
+  .kpi-delta {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .kpi-delta.up { color: var(--green); }
+  .kpi-delta.down { color: var(--red); }
+  .kpi-delta.neutral { color: var(--text-dim); }
+
+  .kpi-sub {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 4px;
+    font-family: 'DM Mono', monospace;
+  }
+
+  /* MAIN GRID */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .full-width { grid-column: 1 / -1; }
+
+  /* PANEL */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 28px;
+  }
+
+  .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+  }
+
+  .panel-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--text);
+  }
+
+  .panel-tag {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    padding: 4px 10px;
+    border-radius: 2px;
+    letter-spacing: 1px;
+  }
+
+  .tag-correo { background: rgba(0,212,255,0.1); color: var(--accent2); border: 1px solid rgba(0,212,255,0.2); }
+  .tag-whatsapp { background: rgba(74,222,128,0.1); color: var(--green); border: 1px solid rgba(74,222,128,0.2); }
+  .tag-general { background: rgba(200,255,0,0.1); color: var(--accent); border: 1px solid rgba(200,255,0,0.2); }
+
+  /* HALLAZGOS */
+  .hallazgos-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .hallazgo-item {
+    display: flex;
+    gap: 16px;
+    padding: 16px;
+    background: var(--surface2);
+    border-radius: 6px;
+    border-left: 3px solid var(--border);
+    transition: border-color 0.2s;
+    animation: fadeIn 0.4s ease forwards;
+    opacity: 0;
+  }
+
+  .hallazgo-item:nth-child(1) { animation-delay: 0.1s; }
+  .hallazgo-item:nth-child(2) { animation-delay: 0.2s; }
+  .hallazgo-item:nth-child(3) { animation-delay: 0.3s; }
+  .hallazgo-item:nth-child(4) { animation-delay: 0.4s; }
+  .hallazgo-item:nth-child(5) { animation-delay: 0.5s; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .hallazgo-item.positivo { border-left-color: var(--green); }
+  .hallazgo-item.negativo { border-left-color: var(--red); }
+  .hallazgo-item.neutro { border-left-color: var(--yellow); }
+
+  .hallazgo-icon {
+    font-size: 18px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .hallazgo-text {
+    flex: 1;
+  }
+
+  .hallazgo-titulo {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+
+  .hallazgo-detalle {
+    font-size: 12px;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+
+  .hallazgo-valor {
+    font-family: 'DM Mono', monospace;
+    font-size: 18px;
+    font-weight: 500;
+    flex-shrink: 0;
+    align-self: center;
+  }
+
+  .hallazgo-valor.up { color: var(--green); }
+  .hallazgo-valor.down { color: var(--red); }
+  .hallazgo-valor.neutral { color: var(--yellow); }
+
+  /* BARRAS DE UNIVERSIDADES */
+  .univ-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .univ-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .univ-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .univ-name {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .priority-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    padding: 2px 6px;
+    background: rgba(200,255,0,0.1);
+    color: var(--accent);
+    border: 1px solid rgba(200,255,0,0.3);
+    border-radius: 2px;
+    letter-spacing: 1px;
+  }
+
+  .univ-stats {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+    display: flex;
+    gap: 12px;
+  }
+
+  .univ-bar-bg {
+    height: 6px;
+    background: var(--surface2);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .univ-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: var(--accent);
+    transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .univ-bar-fill.priority { background: var(--accent); }
+  .univ-bar-fill.normal { background: var(--accent2); opacity: 0.6; }
+
+  /* TENDENCIA POR PRODUCTO */
+  .producto-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+
+  .producto-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 20px;
+    text-align: center;
+  }
+
+  .producto-nombre {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 12px;
+  }
+
+  .producto-valor {
+    font-family: 'Syne', sans-serif;
+    font-size: 32px;
+    font-weight: 800;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+
+  .producto-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-bottom: 12px;
+  }
+
+  .producto-delta {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 3px;
+    display: inline-block;
+  }
+
+  .producto-delta.up { background: rgba(74,222,128,0.1); color: var(--green); }
+  .producto-delta.down { background: rgba(248,113,113,0.1); color: var(--red); }
+  .producto-delta.neutral { background: rgba(251,191,36,0.1); color: var(--yellow); }
+
+  /* TENDENCIA TABLA */
+  .tendencia-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .tendencia-table th {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    padding: 8px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .tendencia-table td {
+    font-size: 13px;
+    padding: 12px 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    color: var(--text);
+  }
+
+  .tendencia-table tr:last-child td { border-bottom: none; }
+
+  .tendencia-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+  .td-mono {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+  }
+
+  .td-bold {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+  }
+
+  .badge-up { background: rgba(74,222,128,0.1); color: var(--green); }
+  .badge-down { background: rgba(248,113,113,0.1); color: var(--red); }
+  .badge-neutral { background: rgba(251,191,36,0.1); color: var(--yellow); }
+
+  /* FOOTER */
+  .footer {
+    margin-top: 48px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .footer-text {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dimmer);
+    letter-spacing: 1px;
+  }
+
+  /* LOADING */
+  .loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 80px;
+    gap: 16px;
+  }
+
+  .loading-spinner {
+    width: 32px;
+    height: 32px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .loading-text {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--text-dim);
+    letter-spacing: 2px;
+  }
+
+  .error-state {
+    padding: 32px;
+    text-align: center;
+    color: var(--red);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+  }
+
+  /* CORTE INDICATOR */
+  .corte-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  .corte-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  .corte-dot.c1 { background: var(--accent2); }
+  .corte-dot.c2 { background: var(--accent); }
+
+  /* SELECT CORTE */
+  select {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-dim);
+    border-radius: 4px;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  select:hover, select:focus {
+    border-color: var(--accent);
+    color: var(--text);
+  }
+
+  select option { background: var(--surface2); }
+
+  @media (max-width: 900px) {
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    .main-grid { grid-template-columns: 1fr; }
+    .producto-grid { grid-template-columns: 1fr; }
+    h1 { font-size: 26px; }
+  }
+</style>
 </head>
-
 <body>
+<div class="container">
 
   <!-- HEADER -->
   <div class="header">
-    <h1>Dashboard Ejecutivo RADAR CAPPES</h1>
-    <p>Métricas ejecutivas automáticas | Radar Regulatorio - Radar Mercado</p>
+    <div class="header-left">
+      <div class="brand-tag">CAPPES · Sistema de métricas</div>
+      <h1>RADAR <span>CAPPES</span><br>Dashboard Ejecutivo</h1>
+    </div>
+    <div class="header-right">
+      <div class="last-update" id="lastUpdate">Sin datos</div>
+      <div class="corte-indicator">
+        <span class="corte-dot c1"></span> Corte 1
+        <span class="corte-dot c2" style="margin-left:8px"></span> Corte 2 (final)
+      </div>
+    </div>
+  </div>
+
+  <!-- FILTROS -->
+  <div class="filters">
+    <span class="filter-label">Edición</span>
+    <div class="filter-group" id="filterMes"></div>
+    <div class="filter-divider"></div>
+    <span class="filter-label">Corte</span>
+    <div class="filter-group" id="filterCorte"></div>
+    <div class="filter-divider"></div>
+    <span class="filter-label">Producto</span>
+    <div class="filter-group" id="filterProducto"></div>
   </div>
 
   <!-- KPIs -->
-  <div class="kpi-grid">
+  <div class="kpi-grid" id="kpiGrid"></div>
 
-    <div class="card">
-      <h3>Apertura promedio</h3>
-      <div class="value" id="kpiOpen">--</div>
-      <div class="variation positive">Actualizado automáticamente</div>
+  <!-- MAIN GRID -->
+  <div class="main-grid">
+
+    <!-- HALLAZGOS EJECUTIVOS -->
+    <div class="panel full-width">
+      <div class="panel-header">
+        <div class="panel-title">⚡ Hallazgos Ejecutivos</div>
+        <span class="panel-tag tag-general">AUTO-GENERADOS</span>
+      </div>
+      <div id="hallazgosContainer"><div class="error-state">⚠ No se pudo cargar el CSV de Google Sheets.<br><br>
+  Asegúrate de reemplazar SHEETS_CSV_URL con tu enlace de publicación.<br>
+  Error: Failed to fetch</div></div>
     </div>
 
-    <div class="card">
-      <h3>Total clics</h3>
-      <div class="value" id="kpiClicks">--</div>
-      <div class="variation">Engagement consolidado</div>
+    <!-- DESEMPEÑO POR UNIVERSIDAD (CORREO) -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Universidades · Correo</div>
+        <span class="panel-tag tag-correo">MAILSUITE</span>
+      </div>
+      <div id="univCorreoContainer">
+        <div class="loading-state"><div class="loading-spinner"></div></div>
+      </div>
     </div>
 
-    <div class="card">
-      <h3>Universidad líder</h3>
-      <div class="value" id="kpiTopUni">--</div>
-      <div class="variation positive">Mayor interacción</div>
+    <!-- DESEMPEÑO POR UNIVERSIDAD (WHATSAPP) -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Universidades · WhatsApp</div>
+        <span class="panel-tag tag-whatsapp">SHORT.IO</span>
+      </div>
+      <div id="univWaContainer">
+        <div class="loading-state"><div class="loading-spinner"></div></div>
+      </div>
     </div>
 
-    <div class="card">
-      <h3>Producto crítico</h3>
-      <div class="value" id="kpiWorst">--</div>
-      <div class="variation negative">Menor engagement</div>
+    <!-- ENGAGEMENT POR PRODUCTO -->
+    <div class="panel full-width">
+      <div class="panel-header">
+        <div class="panel-title">Engagement por Producto · Vía Correo</div>
+        <span class="panel-tag tag-correo">USUARIOS ÚNICOS CON CLICS</span>
+      </div>
+      <div id="productoContainer">
+        <div class="loading-state"><div class="loading-spinner"></div></div>
+      </div>
+    </div>
+
+    <!-- EVOLUCIÓN POR EDICIÓN -->
+    <div class="panel full-width">
+      <div class="panel-header">
+        <div class="panel-title">Evolución por Edición</div>
+        <span class="panel-tag tag-general">CORTE FINAL POR MES</span>
+      </div>
+      <div id="evolucionContainer">
+        <div class="loading-state"><div class="loading-spinner"></div></div>
+      </div>
     </div>
 
   </div>
 
-  <!-- HALLAZGOS -->
-  <div class="section">
-
-    <div class="section-title">
-      Hallazgos Ejecutivos
-    </div>
-
-    <div class="hallazgos">
-      <ul id="hallazgosList"></ul>
-    </div>
-
-  </div>
-
-  <!-- GRÁFICOS -->
-  <div class="section">
-
-    <div class="section-title">
-      Visualización Ejecutiva
-    </div>
-
-    <div class="charts-grid">
-
-      <canvas id="universidadesChart"></canvas>
-
-      <canvas id="productosChart"></canvas>
-
-      <canvas id="tendenciaChart"></canvas>
-
-    </div>
-
-  </div>
-
+  <!-- FOOTER -->
   <div class="footer">
-    Dashboard conectado automáticamente a Google Sheets
+    <div class="footer-text">RADAR CAPPES · Métricas de consumo · CAPPES</div>
+    <div class="footer-text" id="footerUpdate"></div>
   </div>
+
+</div>
 
 <script>
+// ============================================================
+// CONFIGURACIÓN — reemplaza con tu URL de Google Sheets CSV
+// ============================================================
+// Para obtener tu URL:
+// 1. Abre tu Google Sheets
+// 2. Ve a Archivo > Compartir > Publicar en la web
+// 3. Elige la hoja "Dashboard_Data" y formato CSV
+// 4. Copia el enlace y pégalo abajo
+const SHEETS_CSV_URL = 'TU_URL_CSV_AQUI';
 
-const CSV_URL =
-"https://docs.google.com/spreadsheets/d/e/2PACX-1vQReJB4--R8ZJUjWCdyfUGfN5WIGM4Zq3OuYWJylZ9bk0FD_SkfHzItWzaxD4k2LhNrMGzDM6mj7CT-/pub?gid=461070267&single=true&output=csv";
+// Universidades prioritarias (resaltadas en azul en tu sheet)
+const PRIORITY_UNIVS = ['UAC', 'UCSP', 'UPEU'];
 
-Papa.parse(CSV_URL, {
+// ============================================================
+// ESTADO GLOBAL
+// ============================================================
+let allData = [];
+let filteredData = [];
+let activeFilters = {
+  mes: 'Todos',
+  corte: 'Todos',
+  producto: 'Todos'
+};
 
-  download:true,
-  header:true,
+// ============================================================
+// CARGA DE DATOS
+// ============================================================
+async function loadData() {
+  try {
+    const response = await fetch(SHEETS_CSV_URL);
+    const text = await response.text();
+    const result = Papa.parse(text, {
+      header: true,
+      skipEmptyLines: true,
+      dynamicTyping: false
+    });
 
-  complete:function(results){
+    allData = result.data.map(row => ({
+      fecha: row['Fecha_Envio'] || '',
+      mes: row['Mes'] || '',
+      corte: parseInt(row['Corte']) || 1,
+      canal: row['Canal'] || '',
+      universidad: row['Universidad'] || '',
+      producto: row['Producto'] || '',
+      usuariosEnviados: parseNum(row['Usuarios_Enviados']),
+      usuariosAbrieron: parseNum(row['Usuarios_Abrieron']),
+      pctApertura: parseNum(row['Pct_Apertura']),
+      usuariosUnicosClicks: parseNum(row['Usuarios_Unicos_Clicks']),
+      totalClicks: parseNum(row['Total_Clicks']),
+    })).filter(r => r.mes && r.canal && r.universidad);
 
-    console.log(results.data);
+    initFilters();
+    applyFilters();
+    updateLastUpdate();
 
-    procesarDashboard(results.data);
-
+  } catch (err) {
+    showError(err);
   }
-
-});
-
-function procesarDashboard(data){
-
-  // =========================================
-  // VARIABLES
-  // =========================================
-
-  const universidades = {};
-
-  const productos = {
-    "Radar Regulatorio":0,
-    "Radar Mercado":0,
-    "Dashboard":0
-  };
-
-  let totalOpen = 0;
-  let totalClicks = 0;
-  let totalRows = 0;
-
-  // =========================================
-  // RECORRER DATA
-  // =========================================
-
-  data.forEach(row => {
-
-    // IMPORTANTE:
-    // Ajusta estos nombres EXACTAMENTE
-    // como aparezcan en tu Google Sheets
-
-    const universidad = row["Universidad"];
-    const apertura = parseFloat(row["Apertura"] || 0);
-    const clicks = parseFloat(row["Clicks"] || 0);
-
-    const regulatorio =
-      parseFloat(row["Radar Regulatorio"] || 0);
-
-    const mercado =
-      parseFloat(row["Radar Mercado"] || 0);
-
-    const dashboard =
-      parseFloat(row["Dashboard"] || 0);
-
-    // Universidades
-
-    if(universidad){
-
-      universidades[universidad] =
-      (universidades[universidad] || 0)
-      + apertura;
-
-    }
-
-    // Productos
-
-    productos["Radar Regulatorio"] += regulatorio;
-    productos["Radar Mercado"] += mercado;
-    productos["Dashboard"] += dashboard;
-
-    totalOpen += apertura;
-    totalClicks += clicks;
-
-    totalRows++;
-
-  });
-
-  // =========================================
-  // KPIs
-  // =========================================
-
-  const promedioOpen =
-  totalRows > 0
-  ? (totalOpen / totalRows).toFixed(1)
-  : 0;
-
-  document.getElementById("kpiOpen")
-  .innerText = promedioOpen + "%";
-
-  document.getElementById("kpiClicks")
-  .innerText = totalClicks;
-
-  // Universidad líder
-
-  let topUni = "--";
-
-  if(Object.keys(universidades).length > 0){
-
-    topUni = Object.keys(universidades)
-    .reduce((a,b)=>
-      universidades[a] > universidades[b]
-      ? a : b
-    );
-
-  }
-
-  document.getElementById("kpiTopUni")
-  .innerText = topUni;
-
-  // Producto crítico
-
-  let worstProduct = "--";
-
-  if(Object.keys(productos).length > 0){
-
-    worstProduct =
-    Object.keys(productos)
-    .reduce((a,b)=>
-      productos[a] < productos[b]
-      ? a : b
-    );
-
-  }
-
-  document.getElementById("kpiWorst")
-  .innerText = worstProduct;
-
-  // =========================================
-  // HALLAZGOS
-  // =========================================
-
-  const hallazgos = [
-
-    `La apertura promedio consolidada es de ${promedioOpen}%.`,
-
-    `${topUni} presenta el mayor engagement del periodo.`,
-
-    `${worstProduct} muestra el menor nivel de interacción.`,
-
-    `Existen diferencias importantes entre universidades prioritarias.`,
-
-    `Se recomienda priorizar seguimiento a instituciones con menor apertura.`
-
-  ];
-
-  const hallazgosList =
-  document.getElementById("hallazgosList");
-
-  hallazgos.forEach(h => {
-
-    const li = document.createElement("li");
-
-    li.textContent = h;
-
-    hallazgosList.appendChild(li);
-
-  });
-
-  // =========================================
-  // CHART UNIVERSIDADES
-  // =========================================
-
-  new Chart(
-    document.getElementById("universidadesChart"),
-
-    {
-      type:"bar",
-
-      data:{
-
-        labels:Object.keys(universidades),
-
-        datasets:[{
-
-          label:"Apertura por universidad",
-
-          data:Object.values(universidades),
-
-          backgroundColor:"#3b82f6"
-
-        }]
-
-      },
-
-      options:{
-
-        plugins:{
-
-          legend:{
-            labels:{
-              color:"white"
-            }
-          }
-
-        },
-
-        scales:{
-
-          x:{
-            ticks:{
-              color:"white"
-            }
-          },
-
-          y:{
-            ticks:{
-              color:"white"
-            }
-          }
-
-        }
-
-      }
-
-    }
-
-  );
-
-  // =========================================
-  // CHART PRODUCTOS
-  // =========================================
-
-  new Chart(
-
-    document.getElementById("productosChart"),
-
-    {
-
-      type:"doughnut",
-
-      data:{
-
-        labels:Object.keys(productos),
-
-        datasets:[{
-
-          data:Object.values(productos),
-
-          backgroundColor:[
-            "#22c55e",
-            "#3b82f6",
-            "#ef4444"
-          ]
-
-        }]
-
-      },
-
-      options:{
-
-        plugins:{
-
-          legend:{
-            labels:{
-              color:"white"
-            }
-          }
-
-        }
-
-      }
-
-    }
-
-  );
-
-  // =========================================
-  // CHART TENDENCIA
-  // =========================================
-
-  new Chart(
-
-    document.getElementById("tendenciaChart"),
-
-    {
-
-      type:"line",
-
-      data:{
-
-        labels:[
-          "Febrero",
-          "Marzo",
-          "Abril",
-          "Mayo"
-        ],
-
-        datasets:[{
-
-          label:"Evolución engagement",
-
-          data:[45,52,61,58],
-
-          borderColor:"#38bdf8",
-
-          backgroundColor:"#38bdf8",
-
-          tension:0.4
-
-        }]
-
-      },
-
-      options:{
-
-        plugins:{
-
-          legend:{
-            labels:{
-              color:"white"
-            }
-          }
-
-        },
-
-        scales:{
-
-          x:{
-            ticks:{
-              color:"white"
-            }
-          },
-
-          y:{
-            ticks:{
-              color:"white"
-            }
-          }
-
-        }
-
-      }
-
-    }
-
-  );
-
 }
 
+function parseNum(val) {
+  if (!val || val === '' || val === '-') return 0;
+  return parseFloat(String(val).replace(',', '.')) || 0;
+}
+
+function showError(err) {
+  const msg = `<div class="error-state">⚠ No se pudo cargar el CSV de Google Sheets.<br><br>
+  Asegúrate de reemplazar SHEETS_CSV_URL con tu enlace de publicación.<br>
+  Error: ${err.message}</div>`;
+  document.getElementById('hallazgosContainer').innerHTML = msg;
+  document.getElementById('kpiGrid').innerHTML = '';
+  document.getElementById('lastUpdate').textContent = 'Sin datos';
+}
+
+function updateLastUpdate() {
+  const now = new Date();
+  const str = now.toLocaleDateString('es-PE', { day: '2-digit', month: 'long', year: 'numeric' });
+  document.getElementById('lastUpdate').textContent = `Actualizado: ${str}`;
+  document.getElementById('footerUpdate').textContent = str;
+}
+
+// ============================================================
+// FILTROS
+// ============================================================
+function initFilters() {
+  const meses = ['Todos', ...new Set(allData.map(d => d.mes))];
+  const cortes = ['Todos', ...new Set(allData.map(d => d.corte)).values()].sort();
+  const productos = ['Todos', ...new Set(allData.filter(d => d.producto).map(d => d.producto))];
+
+  renderFilterGroup('filterMes', meses, 'mes');
+  renderFilterGroup('filterCorte', cortes.map(c => c === 'Todos' ? 'Todos' : `Corte ${c}`), 'corte', cortes);
+  renderFilterGroup('filterProducto', productos, 'producto');
+}
+
+function renderFilterGroup(containerId, labels, filterKey, values) {
+  const container = document.getElementById(containerId);
+  const vals = values || labels;
+  container.innerHTML = labels.map((label, i) => {
+    const val = vals[i];
+    const isActive = (filterKey === 'corte')
+      ? (activeFilters.corte === 'Todos' && label === 'Todos') || (activeFilters.corte == vals[i])
+      : activeFilters[filterKey] === label;
+    return `<button class="filter-btn ${isActive ? 'active' : ''}"
+      onclick="setFilter('${filterKey}', '${val}', '${label}', this)">${label}</button>`;
+  }).join('');
+}
+
+function setFilter(key, val, label, btn) {
+  // deactivate siblings
+  btn.closest('.filter-group').querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  if (key === 'corte') {
+    activeFilters.corte = val === 'Todos' ? 'Todos' : parseInt(val);
+  } else {
+    activeFilters[key] = val === 'Todos' ? 'Todos' : label;
+  }
+  applyFilters();
+}
+
+function applyFilters() {
+  filteredData = allData.filter(d => {
+    if (activeFilters.mes !== 'Todos' && d.mes !== activeFilters.mes) return false;
+    if (activeFilters.corte !== 'Todos' && d.corte !== activeFilters.corte) return false;
+    if (activeFilters.producto !== 'Todos' && d.producto !== activeFilters.producto) return false;
+    return true;
+  });
+
+  renderKPIs();
+  renderHallazgos();
+  renderUniversidades();
+  renderProductos();
+  renderEvolucion();
+}
+
+// ============================================================
+// KPIs
+// ============================================================
+function renderKPIs() {
+  const correoData = filteredData.filter(d => d.canal === 'Correo' && d.universidad === 'General');
+  const waData = filteredData.filter(d => d.canal === 'WhatsApp');
+
+  // Apertura promedio del correo (último período)
+  const aperturaProm = correoData.length > 0
+    ? avg(correoData.map(d => d.pctApertura))
+    : 0;
+
+  // Total clicks (correo + WA)
+  const totalClicksCorreo = sum(filteredData.filter(d => d.canal === 'Correo').map(d => d.totalClicks));
+  const totalClicksWa = sum(waData.map(d => d.totalClicks));
+
+  // Universidad líder (mayor apertura de correo)
+  const univCorreo = groupBy(filteredData.filter(d => d.canal === 'Correo' && d.universidad !== 'General'), 'universidad');
+  let univLider = '--';
+  let maxApertura = 0;
+  Object.entries(univCorreo).forEach(([univ, rows]) => {
+    const pct = rows.length > 0 && rows[0].usuariosEnviados > 0
+      ? (sum(rows.map(r => r.usuariosAbrieron)) / sum(rows.map(r => r.usuariosEnviados))) * 100
+      : 0;
+    if (pct > maxApertura) { maxApertura = pct; univLider = univ; }
+  });
+
+  // Producto con más clicks
+  const prodClicks = groupBy(filteredData.filter(d => d.canal === 'Correo' && d.universidad !== 'General'), 'producto');
+  let prodLider = '--';
+  let maxClicks = -1;
+  Object.entries(prodClicks).forEach(([prod, rows]) => {
+    const clicks = sum(rows.map(r => r.totalClicks));
+    if (clicks > maxClicks) { maxClicks = clicks; prodLider = prod; }
+  });
+
+  // Deltas vs edición anterior
+  const meses = [...new Set(allData.map(d => d.mes))];
+  const mesActual = activeFilters.mes !== 'Todos' ? activeFilters.mes : meses[meses.length - 1];
+  const mesAnterior = meses[meses.indexOf(mesActual) - 1];
+
+  let deltaApertura = null;
+  if (mesAnterior) {
+    const prev = allData.filter(d => d.mes === mesAnterior && d.canal === 'Correo' && d.universidad === 'General');
+    const prevPct = avg(prev.map(d => d.pctApertura));
+    deltaApertura = aperturaProm - prevPct;
+  }
+
+  document.getElementById('kpiGrid').innerHTML = `
+    <div class="kpi-card">
+      <div class="kpi-label">% Apertura correo</div>
+      <div class="kpi-value accent">${aperturaProm.toFixed(1)}%</div>
+      ${deltaApertura !== null ? `
+        <div class="kpi-delta ${deltaApertura >= 0 ? 'up' : 'down'}">
+          ${deltaApertura >= 0 ? '▲' : '▼'} ${Math.abs(deltaApertura).toFixed(1)}pp vs. edición anterior
+        </div>` : '<div class="kpi-sub">Promedio del período</div>'}
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Total clics (correo)</div>
+      <div class="kpi-value">${totalClicksCorreo}</div>
+      <div class="kpi-sub">+${totalClicksWa} vía WhatsApp</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Universidad líder</div>
+      <div class="kpi-value" style="font-size:28px">${univLider}</div>
+      <div class="kpi-sub">Mayor apertura de correos</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Producto + clicks</div>
+      <div class="kpi-value" style="font-size:22px">${prodLider}</div>
+      <div class="kpi-sub">${maxClicks > 0 ? maxClicks + ' clics totales' : 'Sin datos'}</div>
+    </div>
+  `;
+}
+
+// ============================================================
+// HALLAZGOS EJECUTIVOS (auto-generados)
+// ============================================================
+function renderHallazgos() {
+  const hallazgos = [];
+  const meses = [...new Set(allData.map(d => d.mes))];
+
+  // Comparar último corte final vs anterior
+  const mesActual = activeFilters.mes !== 'Todos' ? activeFilters.mes : meses[meses.length - 1];
+  const mesAnterior = meses[meses.indexOf(mesActual) - 1];
+
+  const corteMax = Math.max(...allData.filter(d => d.mes === mesActual).map(d => d.corte));
+  const cortePrevMax = mesAnterior ? Math.max(...allData.filter(d => d.mes === mesAnterior).map(d => d.corte)) : null;
+
+  const dataActual = allData.filter(d => d.mes === mesActual && d.corte === corteMax && d.canal === 'Correo' && d.universidad === 'General');
+  const dataPrev = mesAnterior ? allData.filter(d => d.mes === mesAnterior && d.corte === cortePrevMax && d.canal === 'Correo' && d.universidad === 'General') : [];
+
+  // 1. Apertura global
+  const aperActual = avg(dataActual.map(d => d.pctApertura));
+  const aperPrev = avg(dataPrev.map(d => d.pctApertura));
+  if (aperPrev > 0) {
+    const diff = aperActual - aperPrev;
+    const pct = ((diff / aperPrev) * 100).toFixed(1);
+    hallazgos.push({
+      tipo: diff >= 0 ? 'positivo' : 'negativo',
+      icon: diff >= 0 ? '📈' : '📉',
+      titulo: `Apertura de correos ${diff >= 0 ? 'subió' : 'bajó'} ${Math.abs(diff).toFixed(1)}pp`,
+      detalle: `De ${aperPrev.toFixed(1)}% en ${mesAnterior} a ${aperActual.toFixed(1)}% en ${mesActual} (${diff >= 0 ? '+' : ''}${pct}% de cambio relativo).`,
+      valor: `${diff >= 0 ? '+' : ''}${diff.toFixed(1)}pp`,
+      clase: diff >= 0 ? 'up' : 'down'
+    });
+  } else if (aperActual > 0) {
+    hallazgos.push({
+      tipo: 'neutro', icon: '📊',
+      titulo: `Apertura global: ${aperActual.toFixed(1)}%`,
+      detalle: `Edición ${mesActual} — sin período anterior para comparar.`,
+      valor: `${aperActual.toFixed(1)}%`, clase: 'neutral'
+    });
+  }
+
+  // 2. Universidad con mayor caída/subida de apertura
+  const univs = [...new Set(allData.filter(d => d.canal === 'Correo' && d.universidad !== 'General').map(d => d.universidad))];
+  let mayorCaida = null, mayorCaidaVal = 0;
+  let mayorSubida = null, mayorSubidaVal = 0;
+
+  univs.forEach(univ => {
+    const cur = allData.filter(d => d.mes === mesActual && d.corte === corteMax && d.canal === 'Correo' && d.universidad === univ);
+    const prev = mesAnterior ? allData.filter(d => d.mes === mesAnterior && d.corte === cortePrevMax && d.canal === 'Correo' && d.universidad === univ) : [];
+    if (!cur.length || !prev.length) return;
+
+    const pctCur = cur[0].usuariosEnviados > 0 ? (cur[0].usuariosAbrieron / cur[0].usuariosEnviados) * 100 : 0;
+    const pctPrev = prev[0].usuariosEnviados > 0 ? (prev[0].usuariosAbrieron / prev[0].usuariosEnviados) * 100 : 0;
+    const diff = pctCur - pctPrev;
+
+    if (diff < mayorCaidaVal) { mayorCaidaVal = diff; mayorCaida = { univ, pctCur, pctPrev, diff }; }
+    if (diff > mayorSubidaVal) { mayorSubidaVal = diff; mayorSubida = { univ, pctCur, pctPrev, diff }; }
+  });
+
+  if (mayorCaida) {
+    hallazgos.push({
+      tipo: 'negativo', icon: '⚠️',
+      titulo: `${mayorCaida.univ} registró la mayor caída en apertura`,
+      detalle: `Bajó de ${mayorCaida.pctPrev.toFixed(0)}% a ${mayorCaida.pctCur.toFixed(0)}% entre ${mesAnterior} y ${mesActual}.`,
+      valor: `${mayorCaida.diff.toFixed(0)}pp`, clase: 'down'
+    });
+  }
+
+  if (mayorSubida && mayorSubida.univ !== (mayorCaida?.univ)) {
+    hallazgos.push({
+      tipo: 'positivo', icon: '✅',
+      titulo: `${mayorSubida.univ} tuvo la mayor mejora en apertura`,
+      detalle: `Subió de ${mayorSubida.pctPrev.toFixed(0)}% a ${mayorSubida.pctCur.toFixed(0)}% entre ${mesAnterior} y ${mesActual}.`,
+      valor: `+${mayorSubida.diff.toFixed(0)}pp`, clase: 'up'
+    });
+  }
+
+  // 3. Producto con más caída de clicks
+  const productos = ['Radar Regulatorio', 'Radar Mercado', 'Dashboard'];
+  let prodMasCaida = null, prodMasCaidaVal = 0;
+
+  productos.forEach(prod => {
+    const cur = sum(allData.filter(d => d.mes === mesActual && d.corte === corteMax && d.canal === 'Correo' && d.universidad !== 'General' && d.producto === prod).map(d => d.totalClicks));
+    const prev = mesAnterior ? sum(allData.filter(d => d.mes === mesAnterior && d.corte === cortePrevMax && d.canal === 'Correo' && d.universidad !== 'General' && d.producto === prod).map(d => d.totalClicks)) : 0;
+    const diff = cur - prev;
+    if (diff < prodMasCaidaVal) { prodMasCaidaVal = diff; prodMasCaida = { prod, cur, prev, diff }; }
+  });
+
+  if (prodMasCaida) {
+    hallazgos.push({
+      tipo: 'negativo', icon: '🔻',
+      titulo: `${prodMasCaida.prod} tuvo la mayor caída en clics`,
+      detalle: `Pasó de ${prodMasCaida.prev} a ${prodMasCaida.cur} clics entre ${mesAnterior} y ${mesActual}.`,
+      valor: `${prodMasCaida.diff}`, clase: 'down'
+    });
+  }
+
+  // 4. WhatsApp
+  const waActual = sum(allData.filter(d => d.mes === mesActual && d.corte === corteMax && d.canal === 'WhatsApp').map(d => d.totalClicks));
+  const waPrev = mesAnterior ? sum(allData.filter(d => d.mes === mesAnterior && d.corte === cortePrevMax && d.canal === 'WhatsApp').map(d => d.totalClicks)) : 0;
+  if (waActual > 0 || waPrev > 0) {
+    const diff = waActual - waPrev;
+    hallazgos.push({
+      tipo: diff >= 0 ? 'positivo' : 'negativo',
+      icon: diff >= 0 ? '💬' : '💬',
+      titulo: `WhatsApp: ${waActual} clics totales en ${mesActual}`,
+      detalle: mesAnterior ? `${diff >= 0 ? 'Subió' : 'Bajó'} ${Math.abs(diff)} clics respecto a ${mesAnterior} (${waPrev} clics).` : 'Sin período anterior para comparar.',
+      valor: diff !== 0 ? `${diff >= 0 ? '+' : ''}${diff}` : `${waActual}`,
+      clase: diff >= 0 ? 'up' : (diff < 0 ? 'down' : 'neutral')
+    });
+  }
+
+  if (hallazgos.length === 0) {
+    document.getElementById('hallazgosContainer').innerHTML = `
+      <div style="padding:24px;text-align:center;color:var(--text-dim);font-family:'DM Mono',monospace;font-size:12px;">
+        No hay suficientes datos para generar hallazgos comparativos.<br>Se necesitan al menos dos ediciones.
+      </div>`;
+    return;
+  }
+
+  document.getElementById('hallazgosContainer').innerHTML = `
+    <div class="hallazgos-list">
+      ${hallazgos.map(h => `
+        <div class="hallazgo-item ${h.tipo}">
+          <div class="hallazgo-icon">${h.icon}</div>
+          <div class="hallazgo-text">
+            <div class="hallazgo-titulo">${h.titulo}</div>
+            <div class="hallazgo-detalle">${h.detalle}</div>
+          </div>
+          <div class="hallazgo-valor ${h.clase}">${h.valor}</div>
+        </div>
+      `).join('')}
+    </div>`;
+}
+
+// ============================================================
+// UNIVERSIDADES
+// ============================================================
+function renderUniversidades() {
+  // CORREO
+  const correoRows = filteredData.filter(d => d.canal === 'Correo' && d.universidad !== 'General');
+  const univsCorreo = groupBy(correoRows, 'universidad');
+  const univCorreoData = Object.entries(univsCorreo).map(([univ, rows]) => {
+    const totalEnv = rows.length > 0 ? rows[0].usuariosEnviados : 0;
+    const totalAbr = rows.length > 0 ? rows[0].usuariosAbrieron : 0;
+    const pct = totalEnv > 0 ? (totalAbr / totalEnv) * 100 : 0;
+    const clicks = sum(rows.map(r => r.totalClicks));
+    return { univ, totalEnv, totalAbr, pct, clicks };
+  }).sort((a, b) => b.pct - a.pct);
+
+  const maxPct = Math.max(...univCorreoData.map(d => d.pct), 1);
+
+  document.getElementById('univCorreoContainer').innerHTML = univCorreoData.length > 0 ? `
+    <div class="univ-list">
+      ${univCorreoData.map(d => `
+        <div class="univ-row">
+          <div class="univ-meta">
+            <div class="univ-name">
+              ${d.univ}
+              ${PRIORITY_UNIVS.includes(d.univ) ? '<span class="priority-badge">FOCO</span>' : ''}
+            </div>
+            <div class="univ-stats">
+              <span>${d.totalAbr}/${d.totalEnv} abrieron</span>
+              <span>${d.clicks} clics</span>
+              <span style="color:var(--text)">${d.pct.toFixed(0)}%</span>
+            </div>
+          </div>
+          <div class="univ-bar-bg">
+            <div class="univ-bar-fill ${PRIORITY_UNIVS.includes(d.univ) ? 'priority' : 'normal'}"
+              style="width:${(d.pct / maxPct) * 100}%"></div>
+          </div>
+        </div>
+      `).join('')}
+    </div>` : '<div style="padding:24px;color:var(--text-dim);font-size:13px;text-align:center">Sin datos para los filtros seleccionados</div>';
+
+  // WHATSAPP
+  const waRows = filteredData.filter(d => d.canal === 'WhatsApp');
+  const univsWa = groupBy(waRows, 'universidad');
+  const univWaData = Object.entries(univsWa).map(([univ, rows]) => {
+    const totalEnv = rows.length > 0 ? rows[0].usuariosEnviados : 0;
+    const clicks = sum(rows.map(r => r.totalClicks));
+    return { univ, totalEnv, clicks };
+  }).sort((a, b) => b.clicks - a.clicks);
+
+  const maxClicks = Math.max(...univWaData.map(d => d.clicks), 1);
+
+  document.getElementById('univWaContainer').innerHTML = univWaData.length > 0 ? `
+    <div class="univ-list">
+      ${univWaData.map(d => `
+        <div class="univ-row">
+          <div class="univ-meta">
+            <div class="univ-name">
+              ${d.univ}
+              ${PRIORITY_UNIVS.includes(d.univ) ? '<span class="priority-badge">FOCO</span>' : ''}
+            </div>
+            <div class="univ-stats">
+              <span>${d.totalEnv} enviados</span>
+              <span style="color:var(--text)">${d.clicks} clics</span>
+            </div>
+          </div>
+          <div class="univ-bar-bg">
+            <div class="univ-bar-fill ${PRIORITY_UNIVS.includes(d.univ) ? 'priority' : 'normal'}"
+              style="width:${(d.clicks / maxClicks) * 100}%"></div>
+          </div>
+        </div>
+      `).join('')}
+    </div>` : '<div style="padding:24px;color:var(--text-dim);font-size:13px;text-align:center">Sin datos de WhatsApp para los filtros seleccionados</div>';
+}
+
+// ============================================================
+// PRODUCTOS
+// ============================================================
+function renderProductos() {
+  const correoRows = filteredData.filter(d => d.canal === 'Correo' && d.universidad !== 'General');
+  const productos = ['Radar Regulatorio', 'Radar Mercado', 'Dashboard'];
+
+  const meses = [...new Set(allData.map(d => d.mes))];
+  const mesActual = activeFilters.mes !== 'Todos' ? activeFilters.mes : meses[meses.length - 1];
+  const mesAnterior = meses[meses.indexOf(mesActual) - 1];
+
+  const corteMax = activeFilters.corte !== 'Todos' ? activeFilters.corte :
+    Math.max(...allData.filter(d => d.mes === mesActual).map(d => d.corte));
+  const cortePrevMax = mesAnterior ? Math.max(...allData.filter(d => d.mes === mesAnterior).map(d => d.corte)) : null;
+
+  const prodData = productos.map(prod => {
+    const rows = correoRows.filter(d => d.producto === prod);
+    const clicks = sum(rows.map(r => r.totalClicks));
+    const unicos = sum(rows.map(r => r.usuariosUnicosClicks));
+
+    let delta = null;
+    if (mesAnterior) {
+      const prevRows = allData.filter(d => d.mes === mesAnterior && d.corte === cortePrevMax && d.canal === 'Correo' && d.universidad !== 'General' && d.producto === prod);
+      const prevClicks = sum(prevRows.map(r => r.totalClicks));
+      if (prevClicks > 0) delta = ((clicks - prevClicks) / prevClicks * 100).toFixed(0);
+    }
+    return { prod, clicks, unicos, delta };
+  });
+
+  document.getElementById('productoContainer').innerHTML = `
+    <div class="producto-grid">
+      ${prodData.map(p => {
+        const deltaClass = p.delta === null ? 'neutral' : (parseInt(p.delta) >= 0 ? 'up' : 'down');
+        const deltaLabel = p.delta === null ? 'Sin comparación' : `${parseInt(p.delta) >= 0 ? '+' : ''}${p.delta}% vs. anterior`;
+        return `
+          <div class="producto-card">
+            <div class="producto-nombre">${p.prod}</div>
+            <div class="producto-valor">${p.clicks}</div>
+            <div class="producto-label">clics totales · ${p.unicos} usuarios únicos</div>
+            <span class="producto-delta ${deltaClass}">${deltaLabel}</span>
+          </div>`;
+      }).join('')}
+    </div>`;
+}
+
+// ============================================================
+// EVOLUCIÓN
+// ============================================================
+function renderEvolucion() {
+  const meses = [...new Set(allData.map(d => d.mes))];
+
+  const evolucion = meses.map(mes => {
+    const corteMax = Math.max(...allData.filter(d => d.mes === mes).map(d => d.corte));
+    const general = allData.filter(d => d.mes === mes && d.corte === corteMax && d.canal === 'Correo' && d.universidad === 'General');
+    const apertura = avg(general.map(d => d.pctApertura));
+    const clicks = sum(allData.filter(d => d.mes === mes && d.corte === corteMax && d.canal === 'Correo' && d.universidad !== 'General').map(d => d.totalClicks));
+    const wa = sum(allData.filter(d => d.mes === mes && d.corte === corteMax && d.canal === 'WhatsApp').map(d => d.totalClicks));
+    const enviados = general.length > 0 ? general[0].usuariosEnviados : 0;
+    const abrieron = general.length > 0 ? general[0].usuariosAbrieron : 0;
+    return { mes, corteMax, apertura, clicks, wa, enviados, abrieron };
+  });
+
+  document.getElementById('evolucionContainer').innerHTML = `
+    <table class="tendencia-table">
+      <thead>
+        <tr>
+          <th>Edición</th>
+          <th>Corte</th>
+          <th>Enviados</th>
+          <th>Abrieron</th>
+          <th>% Apertura</th>
+          <th>Clics correo</th>
+          <th>Clics WA</th>
+          <th>vs. anterior</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${evolucion.map((e, i) => {
+          const prev = evolucion[i - 1];
+          let deltaHtml = '<span class="badge badge-neutral">—</span>';
+          if (prev && prev.apertura > 0) {
+            const diff = e.apertura - prev.apertura;
+            const cls = diff >= 0 ? 'badge-up' : 'badge-down';
+            deltaHtml = `<span class="badge ${cls}">${diff >= 0 ? '+' : ''}${diff.toFixed(1)}pp</span>`;
+          }
+          return `
+            <tr>
+              <td class="td-bold">${e.mes}</td>
+              <td class="td-mono">C${e.corteMax}</td>
+              <td class="td-mono">${e.enviados}</td>
+              <td class="td-mono">${e.abrieron}</td>
+              <td class="td-mono" style="color:var(--accent)">${e.apertura.toFixed(1)}%</td>
+              <td class="td-mono">${e.clicks}</td>
+              <td class="td-mono">${e.wa}</td>
+              <td>${deltaHtml}</td>
+            </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+}
+
+// ============================================================
+// UTILS
+// ============================================================
+function sum(arr) { return arr.reduce((a, b) => a + (b || 0), 0); }
+function avg(arr) { return arr.length > 0 ? sum(arr) / arr.length : 0; }
+function groupBy(arr, key) {
+  return arr.reduce((acc, item) => {
+    const k = item[key];
+    if (!acc[k]) acc[k] = [];
+    acc[k].push(item);
+    return acc;
+  }, {});
+}
+
+// ============================================================
+// INIT
+// ============================================================
+loadData();
 </script>
+
 
 </body>
 </html>
