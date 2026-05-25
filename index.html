@@ -310,20 +310,33 @@
       <div class="panel-header"><div class="panel-title">⚡ Hallazgos de Consumo por Usuario</div><span class="panel-tag tag-usuarios">AUTO-GENERADOS</span></div>
       <div id="hallazgosUsuariosContainer"><div class="loading-state"><div class="loading-spinner"></div><div class="loading-text">Analizando consumo...</div></div></div>
     </div>
-    <div class="usuarios-header">
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-        <span class="filter-label">Universidad</span>
-        <div class="filter-group" id="filterUnivUsuarios"></div>
-        <div class="filter-divider"></div>
-        <span class="filter-label">Edición</span>
-        <div class="filter-group" id="filterEdicionUsuarios"></div>
+    <div class="filters-bar" style="margin-bottom:24px;">
+      <div class="select-wrap">
+        <label class="select-label">Universidad</label>
+        <div class="select-box">
+          <select id="filterUnivUsuarios" onchange="setUnivFilter(this.value)">
+            <option value="Todas">Todas las universidades</option>
+          </select>
+          <span class="select-arrow">▾</span>
+        </div>
       </div>
-      <div style="display:flex;gap:8px;align-items:center;">
-        <span class="filter-label">Mostrar</span>
-        <div class="filter-group">
-          <button class="filter-btn active" onclick="setConsumoFilter('todos',this)">Todos</button>
-          <button class="filter-btn" onclick="setConsumoFilter('activos',this)">Solo con clics</button>
-          <button class="filter-btn" onclick="setConsumoFilter('inactivos',this)">Sin clics</button>
+      <div class="select-wrap">
+        <label class="select-label">Edición</label>
+        <div class="select-box">
+          <select id="filterEdicionUsuarios" onchange="setEdicionFilter(this.value)">
+          </select>
+          <span class="select-arrow">▾</span>
+        </div>
+      </div>
+      <div class="select-wrap">
+        <label class="select-label">Consumo</label>
+        <div class="select-box">
+          <select id="filterConsumo" onchange="setConsumoFilter(this.value)">
+            <option value="todos">Todos los usuarios</option>
+            <option value="activos">Con clics</option>
+            <option value="inactivos">Sin clics</option>
+          </select>
+          <span class="select-arrow">▾</span>
         </div>
       </div>
     </div>
@@ -339,7 +352,7 @@
 <script>
 const SHEETS_CSV_URL      = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQReJB4--R8ZJUjWCdyfUGfN5WIGM4Zq3OuYWJylZ9bk0FD_SkfHzItWzaxD4k2LhNrMGzDM6mj7CT-/pub?gid=461070267&single=true&output=csv';
 const SHEETS_USUARIOS_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQReJB4--R8ZJUjWCdyfUGfN5WIGM4Zq3OuYWJylZ9bk0FD_SkfHzItWzaxD4k2LhNrMGzDM6mj7CT-/pub?gid=1513759227&single=true&output=csv';
-const PRIORITY_UNIVS      = ['UAC','UCSP','UPEU','UPCH','Laureate'];
+const PRIORITY_UNIVS      = ['UAC','UCSP','UPEU'];
 
 let allData=[], filteredData=[], usuariosData=[];
 let activeFilters={mes:'Todos',corte:'Todos',producto:'Todos'};
@@ -713,15 +726,22 @@ function renderEvolucion(){
 function renderVista2(){initFiltrosUsuarios();renderUsuariosKPIs();renderHallazgosUsuarios();renderAcordeon();}
 
 function initFiltrosUsuarios(){
-  const univs=['Todas',...new Set(usuariosData.map(u=>u.universidad))];
-  document.getElementById('filterUnivUsuarios').innerHTML=univs.map(u=>`<button class="filter-btn ${filterUnivUsuario===u?'active':''}" onclick="setUnivFilter('${u}',this)">${u}</button>`).join('');
+  const univs=[...new Set(usuariosData.map(u=>u.universidad))];
+  const selUniv=document.getElementById('filterUnivUsuarios');
+  selUniv.innerHTML='<option value="Todas">Todas las universidades</option>'+
+    univs.map(u=>`<option value="${u}" ${filterUnivUsuario===u?'selected':''}>${u}</option>`).join('');
+
   const ediciones=[...new Set(usuariosData.map(u=>u.mesCorte))];
-  document.getElementById('filterEdicionUsuarios').innerHTML=ediciones.map(e=>`<button class="filter-btn ${filterEdicionUsuario===e?'active':''}" onclick="setEdicionFilter('${e}',this)">${e}</button>`).join('');
+  const selEd=document.getElementById('filterEdicionUsuarios');
+  selEd.innerHTML=ediciones.map(e=>`<option value="${e}" ${filterEdicionUsuario===e?'selected':''}>${e}</option>`).join('');
+
+  const selC=document.getElementById('filterConsumo');
+  selC.value=consumoFilter;
 }
 
-function setUnivFilter(u,btn){btn.closest('.filter-group').querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');filterUnivUsuario=u;renderUsuariosKPIs();renderHallazgosUsuarios();renderAcordeon();}
-function setEdicionFilter(e,btn){btn.closest('.filter-group').querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');filterEdicionUsuario=e;renderUsuariosKPIs();renderHallazgosUsuarios();renderAcordeon();}
-function setConsumoFilter(f,btn){btn.closest('.filter-group').querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');consumoFilter=f;renderAcordeon();}
+function setUnivFilter(u){filterUnivUsuario=u;renderUsuariosKPIs();renderHallazgosUsuarios();renderAcordeon();}
+function setEdicionFilter(e){filterEdicionUsuario=e;renderUsuariosKPIs();renderHallazgosUsuarios();renderAcordeon();}
+function setConsumoFilter(f){consumoFilter=f;renderAcordeon();}
 
 function scopeUsuarios(){return usuariosData.filter(u=>u.mesCorte===filterEdicionUsuario&&(filterUnivUsuario==='Todas'||u.universidad===filterUnivUsuario));}
 
