@@ -201,6 +201,41 @@
   .footer{margin-top:48px;padding-top:24px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
   .footer-text{font-family:'Nunito',sans-serif;font-size:11px;color:var(--text-dimmer);letter-spacing:0.5px;}
 
+  /* TARJETA CONTEXTO EDITORIAL */
+  .contexto-card{
+    background:var(--surface2); border:1px solid var(--border);
+    border-radius:8px; padding:16px 24px; margin-bottom:28px;
+    display:flex; gap:0; flex-wrap:wrap; align-items:stretch;
+    border-left:3px solid var(--blue);
+  }
+  .contexto-col{
+    display:flex; flex-direction:column; gap:4px;
+    padding:0 24px; border-right:1px solid var(--border); flex:1; min-width:140px;
+  }
+  .contexto-col:first-child{padding-left:0;}
+  .contexto-col:last-child{border-right:none; flex:2;}
+  .contexto-col-label{
+    font-family:'Raleway',sans-serif; font-size:9px; font-weight:700;
+    letter-spacing:2px; text-transform:uppercase; color:var(--text-dim);
+  }
+  .contexto-col-value{
+    font-family:'Nunito',sans-serif; font-size:13px; font-weight:600;
+    color:var(--white); line-height:1.4;
+  }
+  .contexto-col-value.highlight{color:var(--celeste);}
+  .contexto-temas{display:flex; gap:16px; flex-wrap:wrap; flex:1;}
+  .contexto-tema{
+    flex:1; min-width:200px; background:var(--surface);
+    border-radius:6px; padding:10px 14px; border:1px solid var(--border);
+  }
+  .contexto-tema-prod{
+    font-family:'Raleway',sans-serif; font-size:9px; font-weight:700;
+    letter-spacing:2px; text-transform:uppercase; color:var(--blue-lt); margin-bottom:4px;
+  }
+  .contexto-tema-txt{
+    font-family:'Nunito',sans-serif; font-size:12px; font-weight:600; color:var(--white);
+  }
+
   @media(max-width:900px){
     .kpi-grid{grid-template-columns:repeat(2,1fr)}
     .main-grid{grid-template-columns:1fr}
@@ -209,6 +244,8 @@
     h1{font-size:22px}
     .header-left{gap:12px}
     .cappes-logo{width:52px;height:52px}
+    .contexto-col{padding:8px 0;border-right:none;border-bottom:1px solid var(--border);}
+    .contexto-col:last-child{border-bottom:none;}
   }
 </style>
 </head>
@@ -270,6 +307,7 @@
         </div>
       </div>
     </div>
+    <div id="contextoContainer"></div>
     <div class="kpi-grid" id="kpiGrid">
       <div class="kpi-card"><div class="loading-state"><div class="loading-spinner"></div></div></div>
       <div class="kpi-card"></div><div class="kpi-card"></div><div class="kpi-card"></div>
@@ -352,9 +390,10 @@
 <script>
 const SHEETS_CSV_URL      = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQReJB4--R8ZJUjWCdyfUGfN5WIGM4Zq3OuYWJylZ9bk0FD_SkfHzItWzaxD4k2LhNrMGzDM6mj7CT-/pub?gid=461070267&single=true&output=csv';
 const SHEETS_USUARIOS_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQReJB4--R8ZJUjWCdyfUGfN5WIGM4Zq3OuYWJylZ9bk0FD_SkfHzItWzaxD4k2LhNrMGzDM6mj7CT-/pub?gid=1513759227&single=true&output=csv';
+const SHEETS_EDICIONES_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQReJB4--R8ZJUjWCdyfUGfN5WIGM4Zq3OuYWJylZ9bk0FD_SkfHzItWzaxD4k2LhNrMGzDM6mj7CT-/pub?gid=1942731159&single=true&output=csv';
 const PRIORITY_UNIVS      = ['UAC','UCSP','UPEU'];
 
-let allData=[], filteredData=[], usuariosData=[];
+let allData=[], filteredData=[], usuariosData=[], edicionesData=[];
 let activeFilters={mes:'Todos',corte:'Todos',producto:'Todos'};
 let consumoFilter='todos', filterUnivUsuario='Todas', filterEdicionUsuario='';
 
@@ -383,6 +422,79 @@ async function loadData(){
     })).filter(r=>r.mes&&r.canal&&r.universidad);
     initFilters(); applyFilters();
   }catch(err){showError(err);}
+}
+
+async function loadEdiciones(){
+  try{
+    const r=await fetch(SHEETS_EDICIONES_URL);
+    const t=await r.text();
+    const res=Papa.parse(t,{header:true,skipEmptyLines:true,dynamicTyping:false});
+    edicionesData=res.data.map(row=>({
+      mesCorte:   row['Mes_Corte']||'',
+      fechaEnvio: row['Fecha_Envio']||'',
+      fechaCorte: row['Fecha_Corte']||'',
+      diaCorreo:  row['Dia_Correo']||'',
+      horaCorreo: row['Hora_Correo']||'',
+      diaWa:      row['Dia_WhatsApp']||'',
+      horaWa:     row['Hora_WhatsApp']||'',
+      temaRM:     row['Tema_Radar_Mercado']||'',
+      temaRR:     row['Tema_Radar_Regulatorio']||'',
+    })).filter(r=>r.mesCorte);
+  }catch(err){
+    console.warn('No se pudo cargar Ediciones_Data:', err.message);
+  }
+}
+
+function renderContexto(){
+  const container=document.getElementById('contextoContainer');
+  if(!container) return;
+
+  // Determinar la edición activa
+  const meses=[...new Set(allData.map(d=>d.mes))];
+  const mesActual=activeFilters.mes!=='Todos'?activeFilters.mes:meses[meses.length-1];
+  const corteActual=activeFilters.corte!=='Todos'?activeFilters.corte:
+    Math.max(...allData.filter(d=>d.mes===mesActual).map(d=>d.corte));
+  const key=`${mesActual} C${corteActual}`;
+
+  const ed=edicionesData.find(e=>e.mesCorte===key);
+  if(!ed||!ed.fechaEnvio){container.innerHTML='';return;}
+
+  container.innerHTML=`
+    <div class="contexto-card">
+      <div class="contexto-col">
+        <div class="contexto-col-label">Edición</div>
+        <div class="contexto-col-value highlight">${ed.mesCorte}</div>
+      </div>
+      <div class="contexto-col">
+        <div class="contexto-col-label">Fecha de envío</div>
+        <div class="contexto-col-value">${ed.fechaEnvio}</div>
+      </div>
+      <div class="contexto-col">
+        <div class="contexto-col-label">Fecha de corte</div>
+        <div class="contexto-col-value">${ed.fechaCorte}</div>
+      </div>
+      <div class="contexto-col">
+        <div class="contexto-col-label">Correo</div>
+        <div class="contexto-col-value">${ed.diaCorreo} · ${ed.horaCorreo}</div>
+      </div>
+      <div class="contexto-col">
+        <div class="contexto-col-label">WhatsApp</div>
+        <div class="contexto-col-value">${ed.diaWa} · ${ed.horaWa}</div>
+      </div>
+      <div class="contexto-col" style="flex:2;border-right:none;">
+        <div class="contexto-col-label" style="margin-bottom:8px">Temas de la edición</div>
+        <div class="contexto-temas">
+          <div class="contexto-tema">
+            <div class="contexto-tema-prod">Radar Mercado</div>
+            <div class="contexto-tema-txt">${ed.temaRM}</div>
+          </div>
+          <div class="contexto-tema">
+            <div class="contexto-tema-prod">Radar Regulatorio</div>
+            <div class="contexto-tema-txt">${ed.temaRR}</div>
+          </div>
+        </div>
+      </div>
+    </div>`;
 }
 
 async function loadUsuarios(){
@@ -450,7 +562,7 @@ function applyFilters(){
     if(activeFilters.producto!=='Todos'&&d.producto!==activeFilters.producto)return false;
     return true;
   });
-  renderKPIs(); renderHallazgos(); renderUniversidades(); renderProductos(); renderEvolucion();
+  renderContexto(); renderKPIs(); renderHallazgos(); renderUniversidades(); renderProductos(); renderEvolucion();
 }
 
 // ============================================================
@@ -499,9 +611,9 @@ function renderKPIs(){
 
   document.getElementById('kpiGrid').innerHTML=`
     <div class="kpi-card"><div class="kpi-label">% Apertura correo</div><div class="kpi-value accent">${ap.toFixed(1)}%</div>${dAp!==null?`<div class="kpi-delta ${dAp>=0?'up':'down'}">${dAp>=0?'▲':'▼'} ${Math.abs(dAp).toFixed(1)}pp vs. anterior</div>`:'<div class="kpi-sub">Promedio del período</div>'}</div>
-    <div class="kpi-card"><div class="kpi-label">Total clics (correo)</div><div class="kpi-value">${tcc}</div><div class="kpi-sub">+${tcw} vía WhatsApp</div></div>
+    <div class="kpi-card"><div class="kpi-label">Clics en enlaces del correo</div><div class="kpi-value">${tcc}</div><div class="kpi-sub">Clics en enlaces de productos · +${tcw} vía WhatsApp</div></div>
     <div class="kpi-card"><div class="kpi-label">Universidad líder</div><div class="kpi-value" style="font-size:28px">${ul}</div><div class="kpi-sub">Mayor apertura de correos</div></div>
-    <div class="kpi-card"><div class="kpi-label">Producto + clics</div><div class="kpi-value" style="font-size:22px">${pl}</div><div class="kpi-sub">${mc>0?mc+' clics totales':'Sin datos'}</div></div>`;
+    <div class="kpi-card"><div class="kpi-label">Producto más clickeado</div><div class="kpi-value" style="font-size:22px">${pl}</div><div class="kpi-sub">${mc>0?'Mayor engagement · '+mc+' clics en esta edición':'Sin datos'}</div></div>`;
 }
 
 // ============================================================
@@ -799,7 +911,7 @@ function sum(arr){return arr.reduce((a,b)=>a+(b||0),0);}
 function avg(arr){return arr.length>0?sum(arr)/arr.length:0;}
 function groupBy(arr,key){return arr.reduce((acc,item)=>{const k=item[key];if(!acc[k])acc[k]=[];acc[k].push(item);return acc;},{});}
 
-Promise.all([loadData(),loadUsuarios()]).then(()=>{updateLastUpdate();});
+Promise.all([loadData(),loadUsuarios(),loadEdiciones()]).then(()=>{updateLastUpdate();});
 </script>
 </body>
 </html>
