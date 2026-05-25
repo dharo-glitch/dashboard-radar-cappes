@@ -58,14 +58,22 @@
   .view-tab.active{background:var(--blue);color:var(--white);}
   .view-section{display:none;}.view-section.active{display:block;}
 
-  /* FILTERS */
-  .filters{display:flex;gap:12px;margin-bottom:40px;flex-wrap:wrap;align-items:center;}
-  .filter-label{font-family:'Raleway',sans-serif;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);margin-right:4px;font-weight:700;}
-  .filter-group{display:flex;gap:6px;flex-wrap:wrap;}
-  .filter-btn{font-family:'Nunito',sans-serif;font-size:12px;font-weight:600;padding:7px 16px;border:1px solid var(--border);background:transparent;color:var(--text-dim);border-radius:4px;cursor:pointer;transition:all 0.2s;}
-  .filter-btn:hover{border-color:var(--celeste);color:var(--celeste);}
-  .filter-btn.active{background:var(--blue);color:var(--white);border-color:var(--blue);}
-  .filter-divider{width:1px;height:32px;background:var(--border);margin:0 4px;}
+  /* FILTERS BAR */
+  .filters-bar{display:flex;gap:16px;margin-bottom:40px;flex-wrap:wrap;align-items:flex-end;}
+  .select-wrap{display:flex;flex-direction:column;gap:6px;min-width:180px;}
+  .select-label{font-family:'Raleway',sans-serif;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);}
+  .select-box{position:relative;}
+  .select-box select{
+    width:100%; padding:9px 36px 9px 14px;
+    font-family:'Nunito',sans-serif; font-size:13px; font-weight:600;
+    color:var(--white); background:var(--surface2);
+    border:1px solid var(--border); border-radius:6px;
+    cursor:pointer; outline:none; appearance:none; -webkit-appearance:none;
+    transition:border-color 0.2s, background 0.2s;
+  }
+  .select-box select:hover,.select-box select:focus{border-color:var(--celeste);background:var(--navy3);}
+  .select-box select option{background:var(--navy2);color:var(--white);}
+  .select-arrow{position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--celeste);font-size:13px;pointer-events:none;}
 
   /* KPI */
   .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:32px;}
@@ -233,15 +241,34 @@
 
   <!-- VISTA 1 -->
   <div class="view-section active" id="view-metricas">
-    <div class="filters">
-      <span class="filter-label">Edición</span>
-      <div class="filter-group" id="filterMes"></div>
-      <div class="filter-divider"></div>
-      <span class="filter-label">Corte</span>
-      <div class="filter-group" id="filterCorte"></div>
-      <div class="filter-divider"></div>
-      <span class="filter-label">Producto</span>
-      <div class="filter-group" id="filterProducto"></div>
+    <div class="filters-bar">
+      <div class="select-wrap">
+        <label class="select-label">Edición</label>
+        <div class="select-box">
+          <select id="filterMes" onchange="setFilterSelect('mes', this.value)">
+            <option value="Todos">Todas las ediciones</option>
+          </select>
+          <span class="select-arrow">▾</span>
+        </div>
+      </div>
+      <div class="select-wrap">
+        <label class="select-label">Corte</label>
+        <div class="select-box">
+          <select id="filterCorte" onchange="setFilterSelect('corte', this.value)">
+            <option value="Todos">Todos los cortes</option>
+          </select>
+          <span class="select-arrow">▾</span>
+        </div>
+      </div>
+      <div class="select-wrap">
+        <label class="select-label">Producto</label>
+        <div class="select-box">
+          <select id="filterProducto" onchange="setFilterSelect('producto', this.value)">
+            <option value="Todos">Todos los productos</option>
+          </select>
+          <span class="select-arrow">▾</span>
+        </div>
+      </div>
     </div>
     <div class="kpi-grid" id="kpiGrid">
       <div class="kpi-card"><div class="loading-state"><div class="loading-spinner"></div></div></div>
@@ -380,30 +407,26 @@ function updateLastUpdate(){
 }
 
 function initFilters(){
-  const meses=['Todos',...new Set(allData.map(d=>d.mes))];
-  const cortes=['Todos',...new Set(allData.map(d=>d.corte)).values()].sort();
-  const productos=['Todos',...new Set(allData.filter(d=>d.producto).map(d=>d.producto))];
-  renderFilterGroup('filterMes',meses,'mes');
-  renderFilterGroup('filterCorte',cortes.map(c=>c==='Todos'?'Todos':`Corte ${c}`),'corte',cortes);
-  renderFilterGroup('filterProducto',productos,'producto');
+  const meses=[...new Set(allData.map(d=>d.mes))];
+  const cortes=[...new Set(allData.map(d=>d.corte))].sort();
+  const productos=[...new Set(allData.filter(d=>d.producto).map(d=>d.producto))];
+
+  const selMes=document.getElementById('filterMes');
+  selMes.innerHTML='<option value="Todos">Todas las ediciones</option>'+
+    meses.map(m=>`<option value="${m}">${m}</option>`).join('');
+
+  const selCorte=document.getElementById('filterCorte');
+  selCorte.innerHTML='<option value="Todos">Todos los cortes</option>'+
+    cortes.map(c=>`<option value="${c}">Corte ${c}</option>`).join('');
+
+  const selProd=document.getElementById('filterProducto');
+  selProd.innerHTML='<option value="Todos">Todos los productos</option>'+
+    productos.map(p=>`<option value="${p}">${p}</option>`).join('');
 }
 
-function renderFilterGroup(cid,labels,key,values){
-  const vals=values||labels;
-  document.getElementById(cid).innerHTML=labels.map((label,i)=>{
-    const val=vals[i];
-    const active=key==='corte'
-      ?(activeFilters.corte==='Todos'&&label==='Todos')||(activeFilters.corte==vals[i])
-      :activeFilters[key]===label;
-    return `<button class="filter-btn ${active?'active':''}" onclick="setFilter('${key}','${val}','${label}',this)">${label}</button>`;
-  }).join('');
-}
-
-function setFilter(key,val,label,btn){
-  btn.closest('.filter-group').querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
+function setFilterSelect(key, val){
   if(key==='corte') activeFilters.corte=val==='Todos'?'Todos':parseInt(val);
-  else activeFilters[key]=val==='Todos'?'Todos':label;
+  else activeFilters[key]=val==='Todos'?'Todos':val;
   applyFilters();
 }
 
