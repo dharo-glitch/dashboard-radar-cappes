@@ -201,39 +201,45 @@
   .footer{margin-top:48px;padding-top:24px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
   .footer-text{font-family:'Nunito',sans-serif;font-size:11px;color:var(--text-dimmer);letter-spacing:0.5px;}
 
-  /* TARJETA CONTEXTO EDITORIAL */
-  .contexto-card{
+  /* FRANJA CONTEXTO EDITORIAL — compacta, una línea */
+  .contexto-strip{
+    display:flex; align-items:center; gap:0;
     background:var(--surface2); border:1px solid var(--border);
-    border-radius:8px; padding:16px 24px; margin-bottom:28px;
-    display:flex; gap:0; flex-wrap:wrap; align-items:stretch;
-    border-left:3px solid var(--blue);
+    border-left:3px solid var(--blue); border-radius:6px;
+    padding:10px 20px; margin-bottom:20px; flex-wrap:wrap; gap:0;
+    overflow:hidden;
   }
-  .contexto-col{
-    display:flex; flex-direction:column; gap:4px;
-    padding:0 24px; border-right:1px solid var(--border); flex:1; min-width:140px;
+  .contexto-item{
+    display:flex; align-items:center; gap:8px;
+    padding:0 18px; border-right:1px solid var(--border);
+    white-space:nowrap;
   }
-  .contexto-col:first-child{padding-left:0;}
-  .contexto-col:last-child{border-right:none; flex:2;}
-  .contexto-col-label{
+  .contexto-item:first-child{padding-left:0;}
+  .contexto-item:last-child{border-right:none; flex:1; white-space:normal;}
+  .contexto-item-label{
     font-family:'Raleway',sans-serif; font-size:9px; font-weight:700;
-    letter-spacing:2px; text-transform:uppercase; color:var(--text-dim);
+    letter-spacing:1.5px; text-transform:uppercase; color:var(--text-dim);
+    flex-shrink:0;
   }
-  .contexto-col-value{
-    font-family:'Nunito',sans-serif; font-size:13px; font-weight:600;
-    color:var(--white); line-height:1.4;
-  }
-  .contexto-col-value.highlight{color:var(--celeste);}
-  .contexto-temas{display:flex; gap:16px; flex-wrap:wrap; flex:1;}
-  .contexto-tema{
-    flex:1; min-width:200px; background:var(--surface);
-    border-radius:6px; padding:10px 14px; border:1px solid var(--border);
-  }
-  .contexto-tema-prod{
-    font-family:'Raleway',sans-serif; font-size:9px; font-weight:700;
-    letter-spacing:2px; text-transform:uppercase; color:var(--blue-lt); margin-bottom:4px;
-  }
-  .contexto-tema-txt{
+  .contexto-item-value{
     font-family:'Nunito',sans-serif; font-size:12px; font-weight:600; color:var(--white);
+  }
+  .contexto-item-value.accent{color:var(--celeste); font-weight:700;}
+  .contexto-temas-inline{
+    display:flex; gap:12px; flex-wrap:wrap; align-items:center;
+  }
+  .contexto-tema-pill{
+    display:flex; align-items:center; gap:6px;
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:4px; padding:4px 10px;
+  }
+  .contexto-tema-pill-prod{
+    font-family:'Raleway',sans-serif; font-size:9px; font-weight:700;
+    letter-spacing:1px; text-transform:uppercase; color:var(--blue-lt);
+    flex-shrink:0;
+  }
+  .contexto-tema-pill-txt{
+    font-family:'Nunito',sans-serif; font-size:11px; font-weight:600; color:var(--white);
   }
 
   @media(max-width:900px){
@@ -244,8 +250,9 @@
     h1{font-size:22px}
     .header-left{gap:12px}
     .cappes-logo{width:52px;height:52px}
-    .contexto-col{padding:8px 0;border-right:none;border-bottom:1px solid var(--border);}
-    .contexto-col:last-child{border-bottom:none;}
+    .contexto-strip{flex-direction:column;gap:8px;}
+    .contexto-item{padding:4px 0;border-right:none;border-bottom:1px solid var(--border);width:100%;}
+    .contexto-item:last-child{border-bottom:none;}
   }
 </style>
 </head>
@@ -447,50 +454,49 @@ async function loadEdiciones(){
 
 function renderContexto(){
   const container=document.getElementById('contextoContainer');
-  if(!container) return;
+  if(!container){container.innerHTML='';return;}
 
-  // Determinar la edición activa
-  const meses=[...new Set(allData.map(d=>d.mes))];
-  const mesActual=activeFilters.mes!=='Todos'?activeFilters.mes:meses[meses.length-1];
-  const corteActual=activeFilters.corte!=='Todos'?activeFilters.corte:
-    Math.max(...allData.filter(d=>d.mes===mesActual).map(d=>d.corte));
-  const key=`${mesActual} C${corteActual}`;
+  // Solo mostrar si se eligió edición Y corte específicos
+  if(activeFilters.mes==='Todos'||activeFilters.corte==='Todos'){
+    container.innerHTML=''; return;
+  }
 
+  const key=`${activeFilters.mes} C${activeFilters.corte}`;
   const ed=edicionesData.find(e=>e.mesCorte===key);
   if(!ed||!ed.fechaEnvio){container.innerHTML='';return;}
 
   container.innerHTML=`
-    <div class="contexto-card">
-      <div class="contexto-col">
-        <div class="contexto-col-label">Edición</div>
-        <div class="contexto-col-value highlight">${ed.mesCorte}</div>
+    <div class="contexto-strip">
+      <div class="contexto-item">
+        <span class="contexto-item-label">Edición</span>
+        <span class="contexto-item-value accent">${ed.mesCorte}</span>
       </div>
-      <div class="contexto-col">
-        <div class="contexto-col-label">Fecha de envío</div>
-        <div class="contexto-col-value">${ed.fechaEnvio}</div>
+      <div class="contexto-item">
+        <span class="contexto-item-label">Envío</span>
+        <span class="contexto-item-value">${ed.fechaEnvio}</span>
       </div>
-      <div class="contexto-col">
-        <div class="contexto-col-label">Fecha de corte</div>
-        <div class="contexto-col-value">${ed.fechaCorte}</div>
+      <div class="contexto-item">
+        <span class="contexto-item-label">Corte</span>
+        <span class="contexto-item-value">${ed.fechaCorte}</span>
       </div>
-      <div class="contexto-col">
-        <div class="contexto-col-label">Correo</div>
-        <div class="contexto-col-value">${ed.diaCorreo} · ${ed.horaCorreo}</div>
+      <div class="contexto-item">
+        <span class="contexto-item-label">Correo</span>
+        <span class="contexto-item-value">${ed.diaCorreo} · ${ed.horaCorreo}</span>
       </div>
-      <div class="contexto-col">
-        <div class="contexto-col-label">WhatsApp</div>
-        <div class="contexto-col-value">${ed.diaWa} · ${ed.horaWa}</div>
+      <div class="contexto-item">
+        <span class="contexto-item-label">WhatsApp</span>
+        <span class="contexto-item-value">${ed.diaWa} · ${ed.horaWa}</span>
       </div>
-      <div class="contexto-col" style="flex:2;border-right:none;">
-        <div class="contexto-col-label" style="margin-bottom:8px">Temas de la edición</div>
-        <div class="contexto-temas">
-          <div class="contexto-tema">
-            <div class="contexto-tema-prod">Radar Mercado</div>
-            <div class="contexto-tema-txt">${ed.temaRM}</div>
+      <div class="contexto-item">
+        <span class="contexto-item-label">Temas</span>
+        <div class="contexto-temas-inline">
+          <div class="contexto-tema-pill">
+            <span class="contexto-tema-pill-prod">RM</span>
+            <span class="contexto-tema-pill-txt">${ed.temaRM}</span>
           </div>
-          <div class="contexto-tema">
-            <div class="contexto-tema-prod">Radar Regulatorio</div>
-            <div class="contexto-tema-txt">${ed.temaRR}</div>
+          <div class="contexto-tema-pill">
+            <span class="contexto-tema-pill-prod">RR</span>
+            <span class="contexto-tema-pill-txt">${ed.temaRR}</span>
           </div>
         </div>
       </div>
