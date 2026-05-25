@@ -588,7 +588,100 @@ function renderEvolucion(){
     const wa=waUniv.length>0?sum(waUniv.map(d=>d.totalClicks)):sum(waRows.filter(d=>d.universidad==='General').map(d=>d.totalClicks));
     return{mes,cM,ap:avg(gen.map(d=>d.pctApertura)),clks,wa,env:gen[0]?.usuariosEnviados||0,abr:gen[0]?.usuariosAbrieron||0};
   });
-  document.getElementById('evolucionContainer').innerHTML=`<table class="tendencia-table"><thead><tr><th>Edición</th><th>Corte</th><th>Enviados</th><th>Abrieron</th><th>% Apertura</th><th>Clics correo</th><th>Clics WA</th><th>vs. anterior</th></tr></thead><tbody>${ev.map((e,i)=>{const prev=ev[i-1];let dH='<span class="badge badge-neutral">—</span>';if(prev&&prev.ap>0){const d=e.ap-prev.ap;dH=`<span class="badge ${d>=0?'badge-up':'badge-down'}">${d>=0?'+':''}${d.toFixed(1)}pp</span>`;}return `<tr><td class="td-bold">${e.mes}</td><td class="td-mono">C${e.cM}</td><td class="td-mono">${e.env}</td><td class="td-mono">${e.abr}</td><td class="td-mono" style="color:var(--celeste)">${e.ap.toFixed(1)}%</td><td class="td-mono">${e.clks}</td><td class="td-mono">${e.wa}</td><td>${dH}</td></tr>`;}).join('')}</tbody></table>`;
+
+  // ---- TABLA ----
+  const tabla = `<table class="tendencia-table"><thead><tr><th>Edición</th><th>Corte</th><th>Enviados</th><th>Abrieron</th><th>% Apertura</th><th>Clics correo</th><th>Clics WA</th><th>vs. anterior</th></tr></thead><tbody>${ev.map((e,i)=>{const prev=ev[i-1];let dH='<span class="badge badge-neutral">—</span>';if(prev&&prev.ap>0){const d=e.ap-prev.ap;dH=`<span class="badge ${d>=0?'badge-up':'badge-down'}">${d>=0?'+':''}${d.toFixed(1)}pp</span>`;}return `<tr><td class="td-bold">${e.mes}</td><td class="td-mono">C${e.cM}</td><td class="td-mono">${e.env}</td><td class="td-mono">${e.abr}</td><td class="td-mono" style="color:var(--celeste)">${e.ap.toFixed(1)}%</td><td class="td-mono">${e.clks}</td><td class="td-mono">${e.wa}</td><td>${dH}</td></tr>`;}).join('')}</tbody></table>`;
+
+  // ---- GRÁFICO SVG ----
+  const W=800, H=220, PL=56, PR=24, PT=24, PB=48;
+  const gW=W-PL-PR, gH=H-PT-PB;
+  const vals=ev.map(e=>e.ap);
+  const minV=Math.max(0, Math.min(...vals)-10);
+  const maxV=Math.min(100, Math.max(...vals)+10);
+  const xStep=gW/(ev.length-1||1);
+  const yScale=v=>PT+gH-((v-minV)/(maxV-minV||1))*gH;
+  const xScale=i=>PL+i*xStep;
+
+  // Línea de clics correo (eje secundario)
+  const maxClks=Math.max(...ev.map(e=>e.clks),1);
+  const yClk=v=>PT+gH-(v/maxClks)*gH;
+
+  // Puntos y path apertura
+  const pts=ev.map((e,i)=>({x:xScale(i),y:yScale(e.ap),ap:e.ap,mes:e.mes,cM:e.cM}));
+  const ptsClk=ev.map((e,i)=>({x:xScale(i),y:yClk(e.clks),clks:e.clks}));
+
+  const pathAp=pts.length>1?`M ${pts.map(p=>`${p.x},${p.y}`).join(' L ')}`:
+    `M ${pts[0].x},${pts[0].y}`;
+  const pathClk=ptsClk.length>1?`M ${ptsClk.map(p=>`${p.x},${p.y}`).join(' L ')}`:
+    `M ${ptsClk[0].x},${ptsClk[0].y}`;
+  const areaAp=pts.length>1?`${pathAp} L ${pts[pts.length-1].x},${PT+gH} L ${pts[0].x},${PT+gH} Z`:'';
+
+  // Líneas de grilla Y (4 líneas)
+  const gridLines=[0,25,50,75,100].map(pct=>{
+    const v=minV+(maxV-minV)*pct/100;
+    const y=yScale(v);
+    return `<line x1="${PL}" y1="${y}" x2="${W-PR}" y2="${y}" stroke="rgba(75,120,200,0.15)" stroke-dasharray="4,4"/>
+            <text x="${PL-6}" y="${y+4}" text-anchor="end" font-size="10" fill="#8a9ab5" font-family="Nunito,sans-serif">${v.toFixed(0)}%</text>`;
+  }).join('');
+
+  // Etiquetas X
+  const xLabels=ev.map((e,i)=>`<text x="${xScale(i)}" y="${H-8}" text-anchor="middle" font-size="11" fill="#8a9ab5" font-family="Raleway,sans-serif" font-weight="700">${e.mes}</text>
+    <text x="${xScale(i)}" y="${H-20}" text-anchor="middle" font-size="9" fill="rgba(138,154,181,0.6)" font-family="Nunito,sans-serif">C${e.cM}</text>`).join('');
+
+  // Área degradada apertura
+  const gradId='apGrad'+Date.now();
+
+  // Tooltips (círculos con valores)
+  const circles=pts.map((p,i)=>{
+    const prev=pts[i-1];
+    const diff=prev?((p.ap-prev.ap)).toFixed(1):null;
+    const diffTxt=diff?`(${parseFloat(diff)>=0?'+':''}${diff}pp)`:'';
+    return `<g class="evo-point" style="cursor:pointer">
+      <circle cx="${p.x}" cy="${p.y}" r="5" fill="#7bcbe4" stroke="#18233c" stroke-width="2"/>
+      <circle cx="${p.x}" cy="${p.y}" r="12" fill="transparent"/>
+      <title>${p.mes} C${p.cM}: ${p.ap.toFixed(1)}% ${diffTxt}</title>
+    </g>`;
+  }).join('');
+
+  // Etiquetas de valor sobre cada punto
+  const labels=pts.map((p,i)=>{
+    const prev=pts[i-1];
+    const diff=prev?(p.ap-prev.ap):null;
+    const color=diff===null?'#8a9ab5':diff>=0?'#4ade80':'#f87171';
+    return `<text x="${p.x}" y="${p.y-12}" text-anchor="middle" font-size="11" fill="${color}" font-family="Raleway,sans-serif" font-weight="800">${p.ap.toFixed(1)}%</text>`;
+  }).join('');
+
+  // Línea de clics (secundaria, más tenue)
+  const circlesClk=ptsClk.map((p,i)=>`<circle cx="${p.x}" cy="${p.y}" r="3.5" fill="#3B6ADC" stroke="#18233c" stroke-width="1.5"/>`).join('');
+  const labelsClk=ptsClk.map((p,i)=>`<text x="${p.x}" y="${p.y+18}" text-anchor="middle" font-size="9" fill="#4D9AEC" font-family="Nunito,sans-serif" font-weight="600">${p.clks} clics</text>`).join('');
+
+  const svg=`
+  <div style="margin-top:24px;margin-bottom:8px;display:flex;align-items:center;gap:20px">
+    <span style="font-family:'Raleway',sans-serif;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#8a9ab5;">Tendencia de apertura</span>
+    <span style="display:flex;align-items:center;gap:6px;font-family:'Nunito',sans-serif;font-size:11px;color:#7bcbe4"><span style="display:inline-block;width:20px;height:2.5px;background:#7bcbe4;border-radius:2px"></span>% Apertura</span>
+    <span style="display:flex;align-items:center;gap:6px;font-family:'Nunito',sans-serif;font-size:11px;color:#4D9AEC"><span style="display:inline-block;width:20px;height:2px;background:#3B6ADC;border-radius:2px;opacity:0.7"></span>Clics correo</span>
+  </div>
+  <div style="width:100%;overflow-x:auto;">
+  <svg viewBox="0 0 ${W} ${H}" style="width:100%;min-width:320px;display:block;" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#7bcbe4" stop-opacity="0.18"/>
+        <stop offset="100%" stop-color="#7bcbe4" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+    ${gridLines}
+    ${areaAp?`<path d="${areaAp}" fill="url(#${gradId})"/>`:''}
+    <path d="${pathAp}" fill="none" stroke="#7bcbe4" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+    <path d="${pathClk}" fill="none" stroke="#3B6ADC" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="5,3" opacity="0.7"/>
+    ${circlesClk}
+    ${labelsClk}
+    ${circles}
+    ${labels}
+    ${xLabels}
+  </svg>
+  </div>`;
+
+  document.getElementById('evolucionContainer').innerHTML = tabla + svg;
 }
 
 // ============================================================
