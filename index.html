@@ -562,18 +562,62 @@ function setFilterSelect(key, val){
 }
 
 function applyFilters(){
-  filteredData=allData.filter(d=>{
+  // Paso 1: filtrar por mes y producto
+  let base=allData.filter(d=>{
     if(activeFilters.mes!=='Todos'&&d.mes!==activeFilters.mes)return false;
-    if(activeFilters.corte!=='Todos'&&d.corte!==activeFilters.corte)return false;
     if(activeFilters.producto!=='Todos'&&d.producto!==activeFilters.producto)return false;
     return true;
   });
+
+  // Paso 2: filtrar por corte
+  if(activeFilters.corte!=='Todos'){
+    // Corte específico seleccionado: usar solo ese corte
+    filteredData=base.filter(d=>d.corte===activeFilters.corte);
+  } else {
+    // "Todos los cortes": usar solo el corte máximo por mes
+    // para evitar duplicidad (C2 ya incluye datos de C1)
+    const meses=[...new Set(base.map(d=>d.mes))];
+    const corteMaxPorMes={};
+    meses.forEach(mes=>{
+      corteMaxPorMes[mes]=Math.max(...base.filter(d=>d.mes===mes).map(d=>d.corte));
+    });
+    filteredData=base.filter(d=>d.corte===corteMaxPorMes[d.mes]);
+  }
+
   renderContexto(); renderKPIs(); renderHallazgos(); renderUniversidades(); renderProductos(); renderEvolucion();
 }
 
 // ============================================================
-// KPIs — CORRECCIÓN: clics SOLO de filas por universidad (no General)
+// KPIs — clics solo de filas por universidad; delta corte vs mismo corte
 // ============================================================
+function getPrevApertura(mesActual, corteActual){
+  // Lógica: comparar C1 vs C1 del mes anterior, C2 vs C2 del mes anterior.
+  // Febrero solo tiene C1 que actúa como C2 final.
+  // Si el mes anterior no tiene el mismo corte, busca el corte más alto disponible.
+  const meses=[...new Set(allData.map(d=>d.mes))];
+  const mesAnt=meses[meses.indexOf(mesActual)-1];
+  if(!mesAnt) return null;
+
+  // Buscar datos del mes anterior con el mismo número de corte
+  const prevSameCorte=allData.filter(d=>
+    d.mes===mesAnt&&d.corte===corteActual&&
+    d.canal==='Correo'&&d.universidad==='General'
+  );
+
+  if(prevSameCorte.length>0){
+    return avg(prevSameCorte.map(d=>d.pctApertura));
+  }
+
+  // Si no existe ese corte en el mes anterior (ej: Febrero solo tiene C1),
+  // usar el corte más alto disponible del mes anterior
+  const maxCorteAnt=Math.max(...allData.filter(d=>d.mes===mesAnt).map(d=>d.corte));
+  const prevMaxCorte=allData.filter(d=>
+    d.mes===mesAnt&&d.corte===maxCorteAnt&&
+    d.canal==='Correo'&&d.universidad==='General'
+  );
+  return prevMaxCorte.length>0?avg(prevMaxCorte.map(d=>d.pctApertura)):null;
+}
+
 function renderKPIs(){
   // Apertura: solo filas General
   const cg=filteredData.filter(d=>d.canal==='Correo'&&d.universidad==='General');
@@ -605,18 +649,25 @@ function renderKPIs(){
   let pl='--',mc=-1;
   Object.entries(pc).forEach(([p,rows])=>{const c=sum(rows.map(r=>r.totalClicks));if(c>mc){mc=c;pl=p;}});
 
-  // Delta vs edición anterior
+  // Delta: corte vs mismo corte del mes anterior
   const meses=[...new Set(allData.map(d=>d.mes))];
   const mesActual=activeFilters.mes!=='Todos'?activeFilters.mes:meses[meses.length-1];
-  const mesAnt=meses[meses.indexOf(mesActual)-1];
+  const corteActual=activeFilters.corte!=='Todos'?activeFilters.corte:
+    Math.max(...allData.filter(d=>d.mes===mesActual).map(d=>d.corte));
+
   let dAp=null;
-  if(mesAnt){
-    const prev=allData.filter(d=>d.mes===mesAnt&&d.canal==='Correo'&&d.universidad==='General');
-    dAp=ap-avg(prev.map(d=>d.pctApertura));
+  if(activeFilters.mes!=='Todos'&&activeFilters.corte!=='Todos'){
+    const prevAp=getPrevApertura(mesActual, corteActual);
+    if(prevAp!==null) dAp=ap-prevAp;
   }
 
+  // Etiqueta del corte de comparación para el subtexto
+  const meses2=[...new Set(allData.map(d=>d.mes))];
+  const mesAnt=meses2[meses2.indexOf(mesActual)-1];
+  const subtextoDelta=dAp!==null&&mesAnt?`vs. ${mesAnt} C${corteActual}`:'vs. edición anterior';
+
   document.getElementById('kpiGrid').innerHTML=`
-    <div class="kpi-card"><div class="kpi-label">% Apertura correo</div><div class="kpi-value accent">${ap.toFixed(1)}%</div>${dAp!==null?`<div class="kpi-delta ${dAp>=0?'up':'down'}">${dAp>=0?'▲':'▼'} ${Math.abs(dAp).toFixed(1)}pp vs. anterior</div>`:'<div class="kpi-sub">Promedio del período</div>'}</div>
+    <div class="kpi-card"><div class="kpi-label">% Apertura correo</div><div class="kpi-value accent">${ap.toFixed(1)}%</div>${dAp!==null?`<div class="kpi-delta ${dAp>=0?'up':'down'}">${dAp>=0?'▲':'▼'} ${Math.abs(dAp).toFixed(1)}pp ${subtextoDelta}</div>`:'<div class="kpi-sub">Sin edición anterior para comparar</div>'}</div>
     <div class="kpi-card"><div class="kpi-label">Clics en enlaces del correo</div><div class="kpi-value">${tcc}</div><div class="kpi-sub">Clics en enlaces de productos · +${tcw} vía WhatsApp</div></div>
     <div class="kpi-card"><div class="kpi-label">Universidad líder</div><div class="kpi-value" style="font-size:28px">${ul}</div><div class="kpi-sub">Mayor apertura de correos</div></div>
     <div class="kpi-card"><div class="kpi-label">Producto más clickeado</div><div class="kpi-value" style="font-size:22px">${pl}</div><div class="kpi-sub">${mc>0?'Mayor engagement · '+mc+' clics en esta edición':'Sin datos'}</div></div>`;
@@ -633,9 +684,15 @@ function renderHallazgos(){
   const cMax=Math.max(...allData.filter(d=>d.mes===mesActual).map(d=>d.corte));
   const cPrev=mesAnt?Math.max(...allData.filter(d=>d.mes===mesAnt).map(d=>d.corte)):null;
 
-  // Apertura: filas General
+  // Apertura: filas General — comparando mismo corte vs mes anterior
   const da=allData.filter(d=>d.mes===mesActual&&d.corte===cMax&&d.canal==='Correo'&&d.universidad==='General');
-  const dp=mesAnt?allData.filter(d=>d.mes===mesAnt&&d.corte===cPrev&&d.canal==='Correo'&&d.universidad==='General'):[];
+  // Buscar mismo corte en mes anterior; si no existe, usar el corte más alto
+  let dpRows=mesAnt?allData.filter(d=>d.mes===mesAnt&&d.corte===cMax&&d.canal==='Correo'&&d.universidad==='General'):[];
+  if(mesAnt&&dpRows.length===0){
+    const maxCAnt=Math.max(...allData.filter(d=>d.mes===mesAnt).map(d=>d.corte));
+    dpRows=allData.filter(d=>d.mes===mesAnt&&d.corte===maxCAnt&&d.canal==='Correo'&&d.universidad==='General');
+  }
+  const dp=dpRows;
   const aA=avg(da.map(d=>d.pctApertura)),aP=avg(dp.map(d=>d.pctApertura));
 
   if(aP>0){const d=aA-aP;h.push({tipo:d>=0?'positivo':'negativo',icon:d>=0?'📈':'📉',titulo:`Apertura general ${d>=0?'subió':'bajó'} ${Math.abs(d).toFixed(1)} puntos porcentuales`,detalle:`De ${aP.toFixed(1)}% en ${mesAnt} a ${aA.toFixed(1)}% en ${mesActual}.`,valor:`${d>=0?'+':''}${d.toFixed(1)}pp`,clase:d>=0?'up':'down'});}
@@ -646,7 +703,8 @@ function renderHallazgos(){
   let mC=null,mCV=0,mS=null,mSV=0;
   univs.forEach(u=>{
     const cur=allData.filter(d=>d.mes===mesActual&&d.corte===cMax&&d.canal==='Correo'&&d.universidad===u);
-    const prev=mesAnt?allData.filter(d=>d.mes===mesAnt&&d.corte===cPrev&&d.canal==='Correo'&&d.universidad===u):[];
+    let prev=mesAnt?allData.filter(d=>d.mes===mesAnt&&d.corte===cMax&&d.canal==='Correo'&&d.universidad===u):[];
+    if(mesAnt&&prev.length===0){const maxCAnt=Math.max(...allData.filter(d=>d.mes===mesAnt).map(d=>d.corte));prev=allData.filter(d=>d.mes===mesAnt&&d.corte===maxCAnt&&d.canal==='Correo'&&d.universidad===u);}
     if(!cur.length||!prev.length)return;
     const pC=cur[0].usuariosEnviados>0?(cur[0].usuariosAbrieron/cur[0].usuariosEnviados)*100:0;
     const pP=prev[0].usuariosEnviados>0?(prev[0].usuariosAbrieron/prev[0].usuariosEnviados)*100:0;
@@ -662,7 +720,9 @@ function renderHallazgos(){
   let pMC=null,pMCV=0;
   prods.forEach(prod=>{
     const cur=sum(allData.filter(d=>d.mes===mesActual&&d.corte===cMax&&d.canal==='Correo'&&d.universidad!=='General'&&d.producto===prod).map(d=>d.totalClicks));
-    const prev=mesAnt?sum(allData.filter(d=>d.mes===mesAnt&&d.corte===cPrev&&d.canal==='Correo'&&d.universidad!=='General'&&d.producto===prod).map(d=>d.totalClicks)):0;
+    let prevRows=mesAnt?allData.filter(d=>d.mes===mesAnt&&d.corte===cMax&&d.canal==='Correo'&&d.universidad!=='General'&&d.producto===prod):[];
+    if(mesAnt&&prevRows.length===0){const maxCAnt=Math.max(...allData.filter(d=>d.mes===mesAnt).map(d=>d.corte));prevRows=allData.filter(d=>d.mes===mesAnt&&d.corte===maxCAnt&&d.canal==='Correo'&&d.universidad!=='General'&&d.producto===prod);}
+    const prev=sum(prevRows.map(d=>d.totalClicks));
     const d=cur-prev; if(d<pMCV){pMCV=d;pMC={prod,cur,prev,d};}
   });
   if(pMC) h.push({tipo:'negativo',icon:'🔻',titulo:`${pMC.prod} registró la mayor caída en clics`,detalle:`Pasó de ${pMC.prev} a ${pMC.cur} clics entre ${mesAnt} y ${mesActual}.`,valor:`${pMC.d}`,clase:'down'});
