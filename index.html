@@ -695,8 +695,9 @@ function renderKPIs(){
   const deltaUnivs=univsActivasAnt!==null?univsActivas-univsActivasAnt:null;
 
   // KPI 3: Total personas que reciben el correo (usuarios enviados, filas General)
-  const cgActual=allData.filter(d=>d.canal==='Correo'&&d.universidad==='General');
-  const totalEnviados=cgActual.length>0?cgActual[0].usuariosEnviados:0;
+  // Usar filteredData para respetar los filtros activos de mes y corte
+  const cgFiltrada=filteredData.filter(d=>d.canal==='Correo'&&d.universidad==='General');
+  const totalEnviados=cgFiltrada.length>0?cgFiltrada[0].usuariosEnviados:0;
   // Delta enviados vs mes anterior mismo corte
   let prevEnviados=null;
   if(activeFilters.mes!=='Todos'&&activeFilters.corte!=='Todos'){
