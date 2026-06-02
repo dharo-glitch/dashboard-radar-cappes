@@ -321,8 +321,12 @@
     </div>
     <div class="main-grid">
       <div class="panel full-width">
-        <div class="panel-header"><div class="panel-title">⚡ Hallazgos Ejecutivos</div><span class="panel-tag tag-general">AUTO-GENERADOS</span></div>
-        <div id="hallazgosContainer"><div class="loading-state"><div class="loading-spinner"></div><div class="loading-text">Analizando datos...</div></div></div>
+        <div class="panel-header"><div class="panel-title">Evolución por Edición</div><span class="panel-tag tag-general">CORTE FINAL POR MES</span></div>
+        <div id="evolucionContainer"><div class="loading-state"><div class="loading-spinner"></div></div></div>
+      </div>
+      <div class="panel full-width">
+        <div class="panel-header"><div class="panel-title">Engagement por Producto · Correo</div><span class="panel-tag tag-correo">USUARIOS ÚNICOS CON CLICS</span></div>
+        <div id="productoContainer"><div class="loading-state"><div class="loading-spinner"></div></div></div>
       </div>
       <div class="panel">
         <div class="panel-header"><div class="panel-title">Universidades · Correo</div><span class="panel-tag tag-correo">MAILSUITE</span></div>
@@ -333,12 +337,8 @@
         <div id="univWaContainer"><div class="loading-state"><div class="loading-spinner"></div></div></div>
       </div>
       <div class="panel full-width">
-        <div class="panel-header"><div class="panel-title">Engagement por Producto · Correo</div><span class="panel-tag tag-correo">USUARIOS ÚNICOS CON CLICS</span></div>
-        <div id="productoContainer"><div class="loading-state"><div class="loading-spinner"></div></div></div>
-      </div>
-      <div class="panel full-width">
-        <div class="panel-header"><div class="panel-title">Evolución por Edición</div><span class="panel-tag tag-general">CORTE FINAL POR MES</span></div>
-        <div id="evolucionContainer"><div class="loading-state"><div class="loading-spinner"></div></div></div>
+        <div class="panel-header"><div class="panel-title">⚡ Hallazgos Ejecutivos</div><span class="panel-tag tag-general">AUTO-GENERADOS</span></div>
+        <div id="hallazgosContainer"><div class="loading-state"><div class="loading-spinner"></div><div class="loading-text">Analizando datos...</div></div></div>
       </div>
     </div>
   </div>
@@ -398,7 +398,7 @@
 const SHEETS_CSV_URL      = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQReJB4--R8ZJUjWCdyfUGfN5WIGM4Zq3OuYWJylZ9bk0FD_SkfHzItWzaxD4k2LhNrMGzDM6mj7CT-/pub?gid=461070267&single=true&output=csv';
 const SHEETS_USUARIOS_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQReJB4--R8ZJUjWCdyfUGfN5WIGM4Zq3OuYWJylZ9bk0FD_SkfHzItWzaxD4k2LhNrMGzDM6mj7CT-/pub?gid=1513759227&single=true&output=csv';
 const SHEETS_EDICIONES_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQReJB4--R8ZJUjWCdyfUGfN5WIGM4Zq3OuYWJylZ9bk0FD_SkfHzItWzaxD4k2LhNrMGzDM6mj7CT-/pub?gid=1942731159&single=true&output=csv';
-const PRIORITY_UNIVS      = ['UAC','UCSP','UPEU','UPCH','Laureate'];
+const PRIORITY_UNIVS      = ['UAC','UCSP','UPEU'];
 
 let allData=[], filteredData=[], usuariosData=[], edicionesData=[];
 let activeFilters={mes:'Todos',corte:'Todos',producto:'Todos'};
@@ -804,7 +804,7 @@ function renderEvolucion(){
   });
 
   // ---- TABLA ----
-  const tabla = `<table class="tendencia-table"><thead><tr><th>Edición</th><th>Corte</th><th>Enviados</th><th>Abrieron</th><th>% Apertura</th><th>Clics correo</th><th>Clics WA</th><th>vs. anterior</th></tr></thead><tbody>${ev.map((e,i)=>{const prev=ev[i-1];let dH='<span class="badge badge-neutral">—</span>';if(prev&&prev.ap>0){const d=e.ap-prev.ap;dH=`<span class="badge ${d>=0?'badge-up':'badge-down'}">${d>=0?'+':''}${d.toFixed(1)}pp</span>`;}return `<tr><td class="td-bold">${e.mes}</td><td class="td-mono">C${e.cM}</td><td class="td-mono">${e.env}</td><td class="td-mono">${e.abr}</td><td class="td-mono" style="color:var(--celeste)">${e.ap.toFixed(1)}%</td><td class="td-mono">${e.clks}</td><td class="td-mono">${e.wa}</td><td>${dH}</td></tr>`;}).join('')}</tbody></table>`;
+  const tabla = `<table class="tendencia-table"><thead><tr><th>Edición</th><th>Enviados</th><th>Abrieron</th><th>% Apertura</th><th>Clics correo</th><th>Clics WA</th></tr></thead><tbody>${ev.map((e,i)=>{return `<tr><td class="td-bold">${e.mes}</td><td class="td-mono">${e.env}</td><td class="td-mono">${e.abr}</td><td class="td-mono" style="color:var(--celeste)">${e.ap.toFixed(1)}%</td><td class="td-mono">${e.clks}</td><td class="td-mono">${e.wa}</td></tr>`;}).join('')}</tbody></table>`;
 
   // ---- GRÁFICO SVG ----
   const W=800, H=220, PL=56, PR=24, PT=24, PB=48;
