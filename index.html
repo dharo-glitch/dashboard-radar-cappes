@@ -906,7 +906,7 @@ function renderEvolucion(){
   });
 
   // ---- TABLA ----
-  const tabla = `<table class="tendencia-table"><thead><tr><th>Edición</th><th>Enviados</th><th>Abrieron</th><th>% Apertura</th><th>Clics correo</th><th>Clics WA</th></tr></thead><tbody>${ev.map((e,i)=>{return `<tr><td class="td-bold">${e.mes}</td><td class="td-mono">${e.env}</td><td class="td-mono">${e.abr}</td><td class="td-mono" style="color:var(--celeste)">${e.ap.toFixed(1)}%</td><td class="td-mono">${e.clks}</td><td class="td-mono">${e.wa}</td></tr>`;}).join('')}</tbody></table>`;
+  const tabla = `<div style="margin-top:24px"><table class="tendencia-table"><thead><tr><th>Edición</th><th>Enviados</th><th>Abrieron</th><th>% Apertura</th><th>Clics correo</th><th>Clics WA</th></tr></thead><tbody>${ev.map((e,i)=>{return `<tr><td class="td-bold">${e.mes}</td><td class="td-mono">${e.env}</td><td class="td-mono">${e.abr}</td><td class="td-mono" style="color:var(--celeste)">${e.ap.toFixed(1)}%</td><td class="td-mono">${e.clks}</td><td class="td-mono">${e.wa}</td></tr>`;}).join('')}</tbody></table></div>`;
 
   // ---- GRÁFICO SVG ----
   const W=800, H=220, PL=56, PR=24, PT=24, PB=48;
@@ -997,7 +997,7 @@ function renderEvolucion(){
   </svg>
   </div>`;
 
-  document.getElementById('evolucionContainer').innerHTML = tabla + svg;
+  document.getElementById('evolucionContainer').innerHTML = svg + tabla;
 }
 
 // ============================================================
