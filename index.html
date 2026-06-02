@@ -707,29 +707,23 @@ function renderKPIs(){
   const deltaEnviados=prevEnviados!==null?totalEnviados-prevEnviados:null;
 
   // KPI 4: % usuarios únicos que clicaron en enlaces (solo correo)
-  // Usuarios_Unicos_Clicks / Usuarios_Enviados * 100 (filas por universidad, sin duplicar)
-  const univRowsAll=filteredData.filter(d=>d.canal==='Correo'&&d.universidad!=='General');
-  const univsUnicas=[...new Set(univRowsAll.map(d=>d.universidad))];
-  // Sumar un único valor de usuariosUnicosClicks por universidad (evitar duplicar por producto)
-  let totalUnicosClicks=0;
-  univsUnicas.forEach(u=>{
-    const rowsU=univRowsAll.filter(d=>d.universidad===u);
-    // Tomar el máximo de usuariosUnicosClicks entre los productos (ya que el usuario
-    // es único independientemente de cuántos productos clickeó)
-    totalUnicosClicks+=Math.max(...rowsU.map(r=>r.usuariosUnicosClicks));
-  });
+  // Leer directamente de filas General, igual que Usuarios_Enviados y Pct_Apertura
+  // Sumar Usuarios_Unicos_Clicks de todas las filas General del período filtrado
+  // (una por producto: RR, RM, Dashboard) — tomar el máximo para obtener el consolidado
+  const cgGeneral=filteredData.filter(d=>d.canal==='Correo'&&d.universidad==='General');
+  const totalUnicosClicks=cgGeneral.length>0
+    ? Math.max(...cgGeneral.map(r=>r.usuariosUnicosClicks))
+    : 0;
   const pctUnicosLinks=totalEnviados>0?(totalUnicosClicks/totalEnviados*100):0;
-  // Delta pct unicos vs mes anterior
+  // Delta pct unicos vs mes anterior mismo corte
   let prevPctUnicos=null;
   if(activeFilters.mes!=='Todos'&&activeFilters.corte!=='Todos'&&mesAnt){
-    const prevUnivRows=allData.filter(d=>d.mes===mesAnt&&d.corte===corteActual&&d.canal==='Correo'&&d.universidad!=='General');
-    const prevUnivs=[...new Set(prevUnivRows.map(d=>d.universidad))];
-    let prevUnicos=0;
-    prevUnivs.forEach(u=>{
-      const rr=prevUnivRows.filter(d=>d.universidad===u);
-      prevUnicos+=Math.max(...rr.map(r=>r.usuariosUnicosClicks));
-    });
-    const prevGenRows=allData.filter(d=>d.mes===mesAnt&&d.corte===corteActual&&d.canal==='Correo'&&d.universidad==='General');
+    let prevGenRows=allData.filter(d=>d.mes===mesAnt&&d.corte===corteActual&&d.canal==='Correo'&&d.universidad==='General');
+    if(prevGenRows.length===0){
+      const maxCAnt=Math.max(...allData.filter(d=>d.mes===mesAnt).map(d=>d.corte));
+      prevGenRows=allData.filter(d=>d.mes===mesAnt&&d.corte===maxCAnt&&d.canal==='Correo'&&d.universidad==='General');
+    }
+    const prevUnicos=prevGenRows.length>0?Math.max(...prevGenRows.map(r=>r.usuariosUnicosClicks)):0;
     const prevEnv=prevGenRows.length>0?prevGenRows[0].usuariosEnviados:0;
     prevPctUnicos=prevEnv>0?(prevUnicos/prevEnv*100):null;
   }
