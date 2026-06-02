@@ -706,28 +706,46 @@ function renderKPIs(){
   }
   const deltaEnviados=prevEnviados!==null?totalEnviados-prevEnviados:null;
 
-  // KPI 4: % usuarios únicos que clicaron en enlaces (solo correo)
-  // Leer directamente de filas General, igual que Usuarios_Enviados y Pct_Apertura
-  // Sumar Usuarios_Unicos_Clicks de todas las filas General del período filtrado
-  // (una por producto: RR, RM, Dashboard) — tomar el máximo para obtener el consolidado
-  const cgGeneral=filteredData.filter(d=>d.canal==='Correo'&&d.universidad==='General');
-  const totalUnicosClicks=cgGeneral.length>0
-    ? Math.max(...cgGeneral.map(r=>r.usuariosUnicosClicks))
-    : 0;
-  const pctUnicosLinks=totalEnviados>0?(totalUnicosClicks/totalEnviados*100):0;
-  // Delta pct unicos vs mes anterior mismo corte
-  let prevPctUnicos=null;
-  if(activeFilters.mes!=='Todos'&&activeFilters.corte!=='Todos'&&mesAnt){
-    let prevGenRows=allData.filter(d=>d.mes===mesAnt&&d.corte===corteActual&&d.canal==='Correo'&&d.universidad==='General');
-    if(prevGenRows.length===0){
-      const maxCAnt=Math.max(...allData.filter(d=>d.mes===mesAnt).map(d=>d.corte));
-      prevGenRows=allData.filter(d=>d.mes===mesAnt&&d.corte===maxCAnt&&d.canal==='Correo'&&d.universidad==='General');
+  // KPI 4: % usuarios únicos que clicaron en enlaces
+  // Fuente: Usuarios_Data (conteo exacto de usuarios con Total_Clics > 0)
+  // Solo disponible para ediciones que tienen datos en Usuarios_Data
+  let pctUnicosLinks=null, deltaPctUnicos=null, unicosDisponible=false;
+
+  if(activeFilters.mes!=='Todos'&&activeFilters.corte!=='Todos'){
+    const keyActual=`${mesActual} C${corteActual}`;
+    const usuariosEdicion=usuariosData.filter(u=>u.mesCorte===keyActual);
+
+    if(usuariosEdicion.length>0){
+      unicosDisponible=true;
+      const unicosConClic=usuariosEdicion.filter(u=>u.totalClics>0).length;
+      pctUnicosLinks=totalEnviados>0?(unicosConClic/totalEnviados*100):0;
+
+      // Delta vs mes anterior mismo corte
+      if(mesAnt){
+        const keyAnt=`${mesAnt} C${corteActual}`;
+        // Intentar mismo corte primero, si no existe buscar corte máximo del mes anterior
+        let usuariosAnt=usuariosData.filter(u=>u.mesCorte===keyAnt);
+        if(usuariosAnt.length===0){
+          const edicionesAnt=[...new Set(usuariosData.filter(u=>u.mesCorte.startsWith(mesAnt)).map(u=>u.mesCorte))];
+          if(edicionesAnt.length>0){
+            const ultimaEdAnt=edicionesAnt[edicionesAnt.length-1];
+            usuariosAnt=usuariosData.filter(u=>u.mesCorte===ultimaEdAnt);
+          }
+        }
+        if(usuariosAnt.length>0){
+          const unicosAnt=usuariosAnt.filter(u=>u.totalClics>0).length;
+          let prevGenRows=allData.filter(d=>d.mes===mesAnt&&d.corte===corteActual&&d.canal==='Correo'&&d.universidad==='General');
+          if(prevGenRows.length===0){
+            const maxCAnt=Math.max(...allData.filter(d=>d.mes===mesAnt).map(d=>d.corte));
+            prevGenRows=allData.filter(d=>d.mes===mesAnt&&d.corte===maxCAnt&&d.canal==='Correo'&&d.universidad==='General');
+          }
+          const prevEnv=prevGenRows.length>0?prevGenRows[0].usuariosEnviados:0;
+          const prevPct=prevEnv>0?(unicosAnt/prevEnv*100):null;
+          if(prevPct!==null) deltaPctUnicos=pctUnicosLinks-prevPct;
+        }
+      }
     }
-    const prevUnicos=prevGenRows.length>0?Math.max(...prevGenRows.map(r=>r.usuariosUnicosClicks)):0;
-    const prevEnv=prevGenRows.length>0?prevGenRows[0].usuariosEnviados:0;
-    prevPctUnicos=prevEnv>0?(prevUnicos/prevEnv*100):null;
   }
-  const deltaPctUnicos=prevPctUnicos!==null?pctUnicosLinks-prevPctUnicos:null;
 
   document.getElementById('kpiGrid').innerHTML=`
     <div class="kpi-card">
@@ -747,8 +765,13 @@ function renderKPIs(){
     </div>
     <div class="kpi-card">
       <div class="kpi-label">% Apertura usuarios únicos links</div>
-      <div class="kpi-value accent">${pctUnicosLinks.toFixed(1)}%</div>
-      ${deltaPctUnicos!==null?`<div class="kpi-delta ${deltaPctUnicos>=0?'up':'down'}">${deltaPctUnicos>=0?'▲':'▼'} ${Math.abs(deltaPctUnicos).toFixed(1)}pp ${subtextoDelta}</div>`:'<div class="kpi-sub">Usuarios únicos con clic / enviados</div>'}
+      ${unicosDisponible&&pctUnicosLinks!==null
+        ? `<div class="kpi-value accent">${pctUnicosLinks.toFixed(1)}%</div>
+           ${deltaPctUnicos!==null
+             ? `<div class="kpi-delta ${deltaPctUnicos>=0?'up':'down'}">${deltaPctUnicos>=0?'▲':'▼'} ${Math.abs(deltaPctUnicos).toFixed(1)}pp ${subtextoDelta}</div>`
+             : '<div class="kpi-sub">Usuarios únicos con clic / enviados</div>'}`
+        : `<div class="kpi-value" style="font-size:18px;color:var(--text-dim)">Sin datos</div>
+           <div class="kpi-sub">Selecciona una edición y corte específicos con datos en Usuarios_Data</div>`}
     </div>`;
 }
 
