@@ -510,6 +510,7 @@ async function loadUsuarios(){
     const res=Papa.parse(t,{header:true,skipEmptyLines:true,dynamicTyping:false});
     usuariosData=res.data.map(row=>({
       mesCorte:row['Mes_Corte']||'', universidad:row['Universidad']||'',
+      estado:row['Estado']||'ACTIVO',
       nombre:row['Nombre']||'', cargo:row['Cargo']||'', email:row['Email']||'',
       clicsRR:parseNum(row['Clics_RR']), clicsRM:parseNum(row['Clics_RM']),
       clicsDash:parseNum(row['Clics_Dash']), totalClics:parseNum(row['Total_Clics']),
@@ -590,6 +591,19 @@ function applyFilters(){
 // ============================================================
 // KPIs — clics solo de filas por universidad; delta corte vs mismo corte
 // ============================================================
+function getPrevApertura_enviados(mesActual, corteActual){
+  // Devuelve el total de enviados del mes anterior (mismo corte o máximo disponible)
+  const meses=[...new Set(allData.map(d=>d.mes))];
+  const mesAnt=meses[meses.indexOf(mesActual)-1];
+  if(!mesAnt) return null;
+  let prevGen=allData.filter(d=>d.mes===mesAnt&&d.corte===corteActual&&d.canal==='Correo'&&d.universidad==='General');
+  if(prevGen.length===0){
+    const maxCAnt=Math.max(...allData.filter(d=>d.mes===mesAnt).map(d=>d.corte));
+    prevGen=allData.filter(d=>d.mes===mesAnt&&d.corte===maxCAnt&&d.canal==='Correo'&&d.universidad==='General');
+  }
+  return prevGen.length>0?prevGen[0].usuariosEnviados:null;
+}
+
 function getPrevApertura(mesActual, corteActual){
   // Lógica: comparar C1 vs C1 del mes anterior, C2 vs C2 del mes anterior.
   // Febrero solo tiene C1 que actúa como C2 final.
@@ -666,11 +680,81 @@ function renderKPIs(){
   const mesAnt=meses2[meses2.indexOf(mesActual)-1];
   const subtextoDelta=dAp!==null&&mesAnt?`vs. ${mesAnt} C${corteActual}`:'vs. edición anterior';
 
+  // KPI 2: Universidades clientes activas (desde Usuarios_Data)
+  // Usar la edición más reciente disponible en usuariosData para contar activas
+  const edicionesDisp=[...new Set(usuariosData.map(u=>u.mesCorte))];
+  const edActiva=edicionesDisp[edicionesDisp.length-1]||'';
+  const univsActivas=new Set(
+    usuariosData.filter(u=>u.mesCorte===edActiva&&u.estado==='ACTIVO').map(u=>u.universidad)
+  ).size;
+  // Delta universidades vs edición anterior
+  const edAnterior=edicionesDisp[edicionesDisp.length-2]||'';
+  const univsActivasAnt=edAnterior?new Set(
+    usuariosData.filter(u=>u.mesCorte===edAnterior&&u.estado==='ACTIVO').map(u=>u.universidad)
+  ).size:null;
+  const deltaUnivs=univsActivasAnt!==null?univsActivas-univsActivasAnt:null;
+
+  // KPI 3: Total personas que reciben el correo (usuarios enviados, filas General)
+  const cgActual=allData.filter(d=>d.canal==='Correo'&&d.universidad==='General');
+  const totalEnviados=cgActual.length>0?cgActual[0].usuariosEnviados:0;
+  // Delta enviados vs mes anterior mismo corte
+  let prevEnviados=null;
+  if(activeFilters.mes!=='Todos'&&activeFilters.corte!=='Todos'){
+    const prevGen=getPrevApertura_enviados(mesActual,corteActual);
+    prevEnviados=prevGen;
+  }
+  const deltaEnviados=prevEnviados!==null?totalEnviados-prevEnviados:null;
+
+  // KPI 4: % usuarios únicos que clicaron en enlaces (solo correo)
+  // Usuarios_Unicos_Clicks / Usuarios_Enviados * 100 (filas por universidad, sin duplicar)
+  const univRowsAll=filteredData.filter(d=>d.canal==='Correo'&&d.universidad!=='General');
+  const univsUnicas=[...new Set(univRowsAll.map(d=>d.universidad))];
+  // Sumar un único valor de usuariosUnicosClicks por universidad (evitar duplicar por producto)
+  let totalUnicosClicks=0;
+  univsUnicas.forEach(u=>{
+    const rowsU=univRowsAll.filter(d=>d.universidad===u);
+    // Tomar el máximo de usuariosUnicosClicks entre los productos (ya que el usuario
+    // es único independientemente de cuántos productos clickeó)
+    totalUnicosClicks+=Math.max(...rowsU.map(r=>r.usuariosUnicosClicks));
+  });
+  const pctUnicosLinks=totalEnviados>0?(totalUnicosClicks/totalEnviados*100):0;
+  // Delta pct unicos vs mes anterior
+  let prevPctUnicos=null;
+  if(activeFilters.mes!=='Todos'&&activeFilters.corte!=='Todos'&&mesAnt){
+    const prevUnivRows=allData.filter(d=>d.mes===mesAnt&&d.corte===corteActual&&d.canal==='Correo'&&d.universidad!=='General');
+    const prevUnivs=[...new Set(prevUnivRows.map(d=>d.universidad))];
+    let prevUnicos=0;
+    prevUnivs.forEach(u=>{
+      const rr=prevUnivRows.filter(d=>d.universidad===u);
+      prevUnicos+=Math.max(...rr.map(r=>r.usuariosUnicosClicks));
+    });
+    const prevGenRows=allData.filter(d=>d.mes===mesAnt&&d.corte===corteActual&&d.canal==='Correo'&&d.universidad==='General');
+    const prevEnv=prevGenRows.length>0?prevGenRows[0].usuariosEnviados:0;
+    prevPctUnicos=prevEnv>0?(prevUnicos/prevEnv*100):null;
+  }
+  const deltaPctUnicos=prevPctUnicos!==null?pctUnicosLinks-prevPctUnicos:null;
+
   document.getElementById('kpiGrid').innerHTML=`
-    <div class="kpi-card"><div class="kpi-label">% Apertura correo</div><div class="kpi-value accent">${ap.toFixed(1)}%</div>${dAp!==null?`<div class="kpi-delta ${dAp>=0?'up':'down'}">${dAp>=0?'▲':'▼'} ${Math.abs(dAp).toFixed(1)}pp ${subtextoDelta}</div>`:'<div class="kpi-sub">Sin edición anterior para comparar</div>'}</div>
-    <div class="kpi-card"><div class="kpi-label">Clics en enlaces del correo</div><div class="kpi-value">${tcc}</div><div class="kpi-sub">Clics en enlaces de productos · +${tcw} vía WhatsApp</div></div>
-    <div class="kpi-card"><div class="kpi-label">Universidad líder</div><div class="kpi-value" style="font-size:28px">${ul}</div><div class="kpi-sub">Mayor apertura de correos</div></div>
-    <div class="kpi-card"><div class="kpi-label">Producto más clickeado</div><div class="kpi-value" style="font-size:22px">${pl}</div><div class="kpi-sub">${mc>0?'Mayor engagement · '+mc+' clics en esta edición':'Sin datos'}</div></div>`;
+    <div class="kpi-card">
+      <div class="kpi-label">% Apertura del correo</div>
+      <div class="kpi-value accent">${ap.toFixed(1)}%</div>
+      ${dAp!==null?`<div class="kpi-delta ${dAp>=0?'up':'down'}">${dAp>=0?'▲':'▼'} ${Math.abs(dAp).toFixed(1)}pp ${subtextoDelta}</div>`:'<div class="kpi-sub">Sin edición anterior para comparar</div>'}
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Universidades clientes</div>
+      <div class="kpi-value">${univsActivas}</div>
+      ${deltaUnivs!==null?`<div class="kpi-delta ${deltaUnivs>=0?'up':'down'}">${deltaUnivs>=0?'▲':'▼'} ${Math.abs(deltaUnivs)} vs. edición anterior</div>`:'<div class="kpi-sub">Universidades con contrato activo</div>'}
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Personas que reciben el correo</div>
+      <div class="kpi-value">${totalEnviados}</div>
+      ${deltaEnviados!==null&&deltaEnviados!==0?`<div class="kpi-delta ${deltaEnviados>=0?'up':'down'}">${deltaEnviados>=0?'▲':'▼'} ${Math.abs(deltaEnviados)} vs. ${subtextoDelta}</div>`:'<div class="kpi-sub">Usuarios en lista de envío</div>'}
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">% Apertura usuarios únicos links</div>
+      <div class="kpi-value accent">${pctUnicosLinks.toFixed(1)}%</div>
+      ${deltaPctUnicos!==null?`<div class="kpi-delta ${deltaPctUnicos>=0?'up':'down'}">${deltaPctUnicos>=0?'▲':'▼'} ${Math.abs(deltaPctUnicos).toFixed(1)}pp ${subtextoDelta}</div>`:'<div class="kpi-sub">Usuarios únicos con clic / enviados</div>'}
+    </div>`;
 }
 
 // ============================================================
