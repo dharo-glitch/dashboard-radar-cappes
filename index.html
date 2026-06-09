@@ -348,13 +348,9 @@
     <div class="usuarios-kpi-row">
       <div class="u-kpi"><div class="u-kpi-label">Total usuarios</div><div class="u-kpi-val" id="ukpi-total">--</div><div class="u-kpi-sub">Reciben el Radar CAPPES</div></div>
       <div class="u-kpi"><div class="u-kpi-label">Consumidores activos</div><div class="u-kpi-val accent" id="ukpi-activos">--</div><div class="u-kpi-sub">Al menos 1 clic registrado</div></div>
-      <div class="u-kpi"><div class="u-kpi-label">Tasa de engagement</div><div class="u-kpi-val accent" id="ukpi-tasa">--</div><div class="u-kpi-sub">Usuarios con clics / total</div></div>
       <div class="u-kpi"><div class="u-kpi-label">Total clics usuarios</div><div class="u-kpi-val" id="ukpi-clics">--</div><div class="u-kpi-sub">Suma de todos los productos</div></div>
     </div>
-    <div class="panel" style="margin-bottom:16px">
-      <div class="panel-header"><div class="panel-title">⚡ Hallazgos de Consumo por Usuario</div><span class="panel-tag tag-usuarios">AUTO-GENERADOS</span></div>
-      <div id="hallazgosUsuariosContainer"><div class="loading-state"><div class="loading-spinner"></div><div class="loading-text">Analizando consumo...</div></div></div>
-    </div>
+
     <div class="filters-bar" style="margin-bottom:24px;">
       <div class="select-wrap">
         <label class="select-label">Universidad</label>
@@ -386,6 +382,11 @@
       </div>
     </div>
     <div id="usuariosContainer"><div class="loading-state"><div class="loading-spinner"></div><div class="loading-text">Cargando usuarios...</div></div></div>
+
+    <div class="panel" style="margin-top:16px">
+      <div class="panel-header"><div class="panel-title">⚡ Hallazgos de Consumo por Usuario</div><span class="panel-tag tag-usuarios">AUTO-GENERADOS</span></div>
+      <div id="hallazgosUsuariosContainer"><div class="loading-state"><div class="loading-spinner"></div><div class="loading-text">Analizando consumo...</div></div></div>
+    </div>
   </div>
 
   <div class="footer">
@@ -398,7 +399,7 @@
 const SHEETS_CSV_URL      = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQReJB4--R8ZJUjWCdyfUGfN5WIGM4Zq3OuYWJylZ9bk0FD_SkfHzItWzaxD4k2LhNrMGzDM6mj7CT-/pub?gid=461070267&single=true&output=csv';
 const SHEETS_USUARIOS_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQReJB4--R8ZJUjWCdyfUGfN5WIGM4Zq3OuYWJylZ9bk0FD_SkfHzItWzaxD4k2LhNrMGzDM6mj7CT-/pub?gid=1513759227&single=true&output=csv';
 const SHEETS_EDICIONES_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQReJB4--R8ZJUjWCdyfUGfN5WIGM4Zq3OuYWJylZ9bk0FD_SkfHzItWzaxD4k2LhNrMGzDM6mj7CT-/pub?gid=1942731159&single=true&output=csv';
-const PRIORITY_UNIVS      = ['UAC','UCSP','UPEU'];
+const PRIORITY_UNIVS      = ['UAC','UCSP','UPEU','UPCH','Laureate'];
 
 let allData=[], filteredData=[], usuariosData=[], edicionesData=[];
 let activeFilters={mes:'Todos',corte:'Todos',producto:'Todos'};
@@ -801,7 +802,7 @@ function renderHallazgos(){
   else if(aA>0) h.push({tipo:'neutro',icon:'📊',titulo:`Apertura global: ${aA.toFixed(1)}%`,detalle:`Edición ${mesActual} — sin período anterior para comparar.`,valor:`${aA.toFixed(1)}%`,clase:'neutral'});
 
   // Universidades — caída/subida
-  const univs=[...new Set(allData.filter(d=>d.canal==='Correo'&&d.universidad!=='General').map(d=>d.universidad))];
+  const univs=[...new Set(allData.filter(d=>d.canal==='Correo'&&d.universidad!=='General'&&d.universidad!=='UTP').map(d=>d.universidad))];
   let mC=null,mCV=0,mS=null,mSV=0;
   univs.forEach(u=>{
     const cur=allData.filter(d=>d.mes===mesActual&&d.corte===cMax&&d.canal==='Correo'&&d.universidad===u);
@@ -1023,19 +1024,29 @@ function setUnivFilter(u){filterUnivUsuario=u;renderUsuariosKPIs();renderHallazg
 function setEdicionFilter(e){filterEdicionUsuario=e;renderUsuariosKPIs();renderHallazgosUsuarios();renderAcordeon();}
 function setConsumoFilter(f){consumoFilter=f;renderAcordeon();}
 
-function scopeUsuarios(){return usuariosData.filter(u=>u.mesCorte===filterEdicionUsuario&&(filterUnivUsuario==='Todas'||u.universidad===filterUnivUsuario));}
+function scopeUsuarios(){
+  return usuariosData.filter(u=>
+    u.mesCorte===filterEdicionUsuario&&
+    (filterUnivUsuario==='Todas'||u.universidad===filterUnivUsuario)
+  );
+}
+function scopeActivos(){
+  return scopeUsuarios().filter(u=>u.estado==='ACTIVO');
+}
 
 function renderUsuariosKPIs(){
   const scope=scopeUsuarios();
-  const total=scope.length,activos=scope.filter(u=>u.totalClics>0).length;
+  // Solo contar usuarios ACTIVOS
+  const activos_scope=scope.filter(u=>u.estado==='ACTIVO');
+  const total=activos_scope.length;
+  const activos=activos_scope.filter(u=>u.totalClics>0).length;
   document.getElementById('ukpi-total').textContent=total;
   document.getElementById('ukpi-activos').textContent=activos;
-  document.getElementById('ukpi-tasa').textContent=total>0?((activos/total)*100).toFixed(0)+'%':'0%';
-  document.getElementById('ukpi-clics').textContent=sum(scope.map(u=>u.totalClics));
+  document.getElementById('ukpi-clics').textContent=sum(activos_scope.map(u=>u.totalClics));
 }
 
 function renderHallazgosUsuarios(){
-  const scope=scopeUsuarios();
+  const scope=scopeActivos();
   const h=[];
   if(!scope.length){document.getElementById('hallazgosUsuariosContainer').innerHTML=`<div style="padding:24px;text-align:center;color:var(--text-dim);font-family:'Nunito',sans-serif;font-size:12px;">Sin datos para los filtros seleccionados.</div>`;return;}
   const total=scope.length,activos=scope.filter(u=>u.totalClics>0),inactivos=scope.filter(u=>u.totalClics===0);
@@ -1043,7 +1054,7 @@ function renderHallazgosUsuarios(){
   h.push({tipo:parseInt(tasa)>=50?'positivo':'negativo',icon:parseInt(tasa)>=50?'👥':'⚠️',titulo:`${tasa}% de los usuarios consumió al menos un producto`,detalle:`${activos.length} de ${total} usuarios hicieron clic en algún producto en la edición ${filterEdicionUsuario}.`,valor:`${tasa}%`,clase:parseInt(tasa)>=50?'up':'down'});
   const masActivo=scope.reduce((a,b)=>a.totalClics>b.totalClics?a:b,scope[0]);
   if(masActivo&&masActivo.totalClics>0) h.push({tipo:'positivo',icon:'🏆',titulo:`${masActivo.nombre} fue el usuario más activo`,detalle:`De ${masActivo.universidad}, acumuló ${masActivo.totalClics} clics (RR: ${masActivo.clicsRR}, RM: ${masActivo.clicsRM}, Dashboard: ${masActivo.clicsDash}).`,valor:`${masActivo.totalClics} clics`,clase:'up'});
-  const univs=[...new Set(scope.map(u=>u.universidad))];
+  const univs=[...new Set(scope.map(u=>u.universidad))].filter(u=>u!=='UTP');
   const ue=univs.map(univ=>{const users=scope.filter(u=>u.universidad===univ);const act=users.filter(u=>u.totalClics>0).length;return{univ,total:users.length,activos:act,tasa:users.length>0?(act/users.length)*100:0};}).sort((a,b)=>b.tasa-a.tasa);
   if(ue.length>0){
     const top=ue[0];h.push({tipo:top.tasa>=50?'positivo':'neutro',icon:'🎯',titulo:`${top.univ} lidera el engagement con ${top.tasa.toFixed(0)}% de sus usuarios activos`,detalle:`${top.activos} de ${top.total} usuarios de ${top.univ} hicieron clic en al menos un producto.`,valor:`${top.tasa.toFixed(0)}%`,clase:top.tasa>=50?'up':'neutral'});
@@ -1065,6 +1076,8 @@ function renderAcordeon(){
     const todos=scope.filter(u=>u.universidad===univ);
     const activosUniv=todos.filter(u=>u.totalClics>0).length,clicsUniv=sum(todos.map(u=>u.totalClics));
     const isPriority=PRIORITY_UNIVS.includes(univ);
+    // Verificar si la universidad tiene algún usuario INACTIVO en la edición actual
+    const isInactivo=todos.length>0&&todos.every(u=>u.estado==='INACTIVO');
     let usuarios=todos;
     if(consumoFilter==='activos') usuarios=todos.filter(u=>u.totalClics>0);
     if(consumoFilter==='inactivos') usuarios=todos.filter(u=>u.totalClics===0);
