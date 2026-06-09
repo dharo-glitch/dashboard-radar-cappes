@@ -378,7 +378,7 @@
 
     <div class="usuarios-kpi-row">
       <div class="u-kpi"><div class="u-kpi-label">Total usuarios</div><div class="u-kpi-val" id="ukpi-total">--</div><div class="u-kpi-sub">Reciben el Radar CAPPES</div></div>
-      <div class="u-kpi"><div class="u-kpi-label">Consumidores activos</div><div class="u-kpi-val accent" id="ukpi-activos">--</div><div class="u-kpi-sub">Al menos 1 clic registrado</div></div>
+      <div class="u-kpi"><div class="u-kpi-label">Usuarios activos</div><div class="u-kpi-val accent" id="ukpi-activos">--</div><div class="u-kpi-sub">Al menos 1 clic registrado</div></div>
       <div class="u-kpi"><div class="u-kpi-label">Total clics usuarios</div><div class="u-kpi-val" id="ukpi-clics">--</div><div class="u-kpi-sub">Suma de todos los productos</div></div>
     </div>
 
@@ -682,19 +682,23 @@ function renderKPIs(){
   const mesAnt=meses2[meses2.indexOf(mesActual)-1];
   const subtextoDelta=dAp!==null&&mesAnt?`vs. ${mesAnt} C${corteActual}`:'vs. edición anterior';
 
-  // KPI 2: Universidades clientes activas (desde Usuarios_Data)
-  // Usar la edición más reciente disponible en usuariosData para contar activas
-  const edicionesDisp=[...new Set(usuariosData.map(u=>u.mesCorte))];
-  const edActiva=edicionesDisp[edicionesDisp.length-1]||'';
-  const univsActivas=new Set(
-    usuariosData.filter(u=>u.mesCorte===edActiva&&u.estado==='ACTIVO').map(u=>u.universidad)
-  ).size;
-  // Delta universidades vs edición anterior
-  const edAnterior=edicionesDisp[edicionesDisp.length-2]||'';
-  const univsActivasAnt=edAnterior?new Set(
-    usuariosData.filter(u=>u.mesCorte===edAnterior&&u.estado==='ACTIVO').map(u=>u.universidad)
-  ).size:null;
-  const deltaUnivs=univsActivasAnt!==null?univsActivas-univsActivasAnt:null;
+  // KPI 2: Universidades clientes — contar universidades únicas en Dashboard_Data
+  // para la edición y corte seleccionados (excluye General y WhatsApp)
+  const univsEnEdicion=new Set(
+    filteredData.filter(d=>d.canal==='Correo'&&d.universidad!=='General').map(d=>d.universidad)
+  );
+  const univsActivas=univsEnEdicion.size;
+  // Delta vs mismo corte del mes anterior
+  let deltaUnivs=null;
+  if(activeFilters.mes!=='Todos'&&activeFilters.corte!=='Todos'&&mesAnt){
+    let prevRows=allData.filter(d=>d.mes===mesAnt&&d.corte===corteActual&&d.canal==='Correo'&&d.universidad!=='General');
+    if(prevRows.length===0){
+      const maxCAnt=Math.max(...allData.filter(d=>d.mes===mesAnt).map(d=>d.corte));
+      prevRows=allData.filter(d=>d.mes===mesAnt&&d.corte===maxCAnt&&d.canal==='Correo'&&d.universidad!=='General');
+    }
+    const univsAnt=new Set(prevRows.map(d=>d.universidad)).size;
+    deltaUnivs=univsActivas-univsAnt;
+  }
 
   // KPI 3: Total personas que reciben el correo (usuarios enviados, filas General)
   // Usar filteredData para respetar los filtros activos de mes y corte
@@ -758,7 +762,7 @@ function renderKPIs(){
     <div class="kpi-card">
       <div class="kpi-label">Universidades clientes</div>
       <div class="kpi-value">${univsActivas}</div>
-      ${deltaUnivs!==null?`<div class="kpi-delta ${deltaUnivs>=0?'up':'down'}">${deltaUnivs>=0?'▲':'▼'} ${Math.abs(deltaUnivs)} vs. edición anterior</div>`:'<div class="kpi-sub">Universidades con contrato activo</div>'}
+      ${deltaUnivs!==null?`<div class="kpi-delta ${deltaUnivs>=0?'up':'down'}">${deltaUnivs>=0?'▲':'▼'} ${Math.abs(deltaUnivs)} vs. ${subtextoDelta}</div>`:'<div class="kpi-sub">Universidades en esta edición</div>'}
     </div>
     <div class="kpi-card">
       <div class="kpi-label">Personas que reciben el correo</div>
