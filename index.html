@@ -542,25 +542,52 @@ function updateLastUpdate(){
 
 function initFilters(){
   const meses=[...new Set(allData.map(d=>d.mes))];
-  const cortes=[...new Set(allData.map(d=>d.corte))].sort();
   const productos=[...new Set(allData.filter(d=>d.producto).map(d=>d.producto))];
 
   const selMes=document.getElementById('filterMes');
   selMes.innerHTML='<option value="Todos">Todas las ediciones</option>'+
-    meses.map(m=>`<option value="${m}">${m}</option>`).join('');
+    meses.map(m=>'<option value="'+m+'">'+m+'</option>').join('');
 
-  const selCorte=document.getElementById('filterCorte');
-  selCorte.innerHTML='<option value="Todos">Todos los cortes</option>'+
-    cortes.map(c=>`<option value="${c}">Corte ${c}</option>`).join('');
+  // Inicializar cortes con todos los disponibles
+  updateCortesFiltro('Todos');
 
   const selProd=document.getElementById('filterProducto');
   selProd.innerHTML='<option value="Todos">Todos los productos</option>'+
-    productos.map(p=>`<option value="${p}">${p}</option>`).join('');
+    productos.map(p=>'<option value="'+p+'">'+p+'</option>').join('');
+}
+
+function updateCortesFiltro(mesSeleccionado){
+  var cortesDisp;
+  if(mesSeleccionado==='Todos'){
+    cortesDisp=[...new Set(allData.map(d=>d.corte))].sort();
+  } else {
+    cortesDisp=[...new Set(allData.filter(d=>d.mes===mesSeleccionado).map(d=>d.corte))].sort();
+  }
+  const selCorte=document.getElementById('filterCorte');
+  // Solo mostrar "Todos los cortes" si hay más de un corte disponible
+  var opcionTodos=cortesDisp.length>1?'<option value="Todos">Todos los cortes</option>':'';
+  selCorte.innerHTML=opcionTodos+
+    cortesDisp.map(c=>'<option value="'+c+'">Corte '+c+'</option>').join('');
+  // Si solo hay un corte, seleccionarlo automáticamente
+  if(cortesDisp.length===1){
+    activeFilters.corte=cortesDisp[0];
+    selCorte.value=cortesDisp[0];
+  } else if(activeFilters.corte!=='Todos'&&!cortesDisp.includes(activeFilters.corte)){
+    activeFilters.corte='Todos';
+    selCorte.value='Todos';
+  } else if(activeFilters.corte!=='Todos'){
+    selCorte.value=activeFilters.corte;
+  }
 }
 
 function setFilterSelect(key, val){
-  if(key==='corte') activeFilters.corte=val==='Todos'?'Todos':parseInt(val);
-  else activeFilters[key]=val==='Todos'?'Todos':val;
+  if(key==='corte'){
+    activeFilters.corte=val==='Todos'?'Todos':parseInt(val);
+  } else {
+    activeFilters[key]=val==='Todos'?'Todos':val;
+    // Si cambia la edición, actualizar los cortes disponibles
+    if(key==='mes') updateCortesFiltro(val==='Todos'?'Todos':val);
+  }
   applyFilters();
 }
 
