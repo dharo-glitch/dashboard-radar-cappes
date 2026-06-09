@@ -345,12 +345,6 @@
 
   <!-- VISTA 2 -->
   <div class="view-section" id="view-usuarios">
-    <div class="usuarios-kpi-row">
-      <div class="u-kpi"><div class="u-kpi-label">Total usuarios</div><div class="u-kpi-val" id="ukpi-total">--</div><div class="u-kpi-sub">Reciben el Radar CAPPES</div></div>
-      <div class="u-kpi"><div class="u-kpi-label">Consumidores activos</div><div class="u-kpi-val accent" id="ukpi-activos">--</div><div class="u-kpi-sub">Al menos 1 clic registrado</div></div>
-      <div class="u-kpi"><div class="u-kpi-label">Total clics usuarios</div><div class="u-kpi-val" id="ukpi-clics">--</div><div class="u-kpi-sub">Suma de todos los productos</div></div>
-    </div>
-
     <div class="filters-bar" style="margin-bottom:24px;">
       <div class="select-wrap">
         <label class="select-label">Universidad</label>
@@ -381,6 +375,13 @@
         </div>
       </div>
     </div>
+
+    <div class="usuarios-kpi-row">
+      <div class="u-kpi"><div class="u-kpi-label">Total usuarios</div><div class="u-kpi-val" id="ukpi-total">--</div><div class="u-kpi-sub">Reciben el Radar CAPPES</div></div>
+      <div class="u-kpi"><div class="u-kpi-label">Consumidores activos</div><div class="u-kpi-val accent" id="ukpi-activos">--</div><div class="u-kpi-sub">Al menos 1 clic registrado</div></div>
+      <div class="u-kpi"><div class="u-kpi-label">Total clics usuarios</div><div class="u-kpi-val" id="ukpi-clics">--</div><div class="u-kpi-sub">Suma de todos los productos</div></div>
+    </div>
+
     <div id="usuariosContainer"><div class="loading-state"><div class="loading-spinner"></div><div class="loading-text">Cargando usuarios...</div></div></div>
 
     <div class="panel" style="margin-top:16px">
@@ -1031,13 +1032,13 @@ function scopeUsuarios(){
   );
 }
 function scopeActivos(){
-  return scopeUsuarios().filter(u=>u.estado==='ACTIVO');
+  return scopeUsuarios().filter(u=>u.estado&&u.estado.trim().toUpperCase()==='ACTIVO');
 }
 
 function renderUsuariosKPIs(){
   const scope=scopeUsuarios();
   // Solo contar usuarios ACTIVOS
-  const activos_scope=scope.filter(u=>u.estado==='ACTIVO');
+  const activos_scope=scope.filter(u=>u.estado&&u.estado.trim().toUpperCase()==='ACTIVO');
   const total=activos_scope.length;
   const activos=activos_scope.filter(u=>u.totalClics>0).length;
   document.getElementById('ukpi-total').textContent=total;
@@ -1077,7 +1078,7 @@ function renderAcordeon(){
     const activosUniv=todos.filter(u=>u.totalClics>0).length,clicsUniv=sum(todos.map(u=>u.totalClics));
     const isPriority=PRIORITY_UNIVS.includes(univ);
     // Verificar si la universidad tiene algún usuario INACTIVO en la edición actual
-    const isInactivo=todos.length>0&&todos.every(u=>u.estado==='INACTIVO');
+    const isInactivo=todos.length>0&&todos.every(u=>u.estado&&u.estado.trim().toUpperCase()==='INACTIVO');
     let usuarios=todos;
     if(consumoFilter==='activos') usuarios=todos.filter(u=>u.totalClics>0);
     if(consumoFilter==='inactivos') usuarios=todos.filter(u=>u.totalClics===0);
