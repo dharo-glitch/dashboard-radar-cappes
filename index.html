@@ -403,7 +403,7 @@ const SHEETS_EDICIONES_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ
 const PRIORITY_UNIVS      = ['UAC','UCSP','UPEU','UPCH','Laureate'];
 
 let allData=[], filteredData=[], usuariosData=[], edicionesData=[];
-let activeFilters={mes:'Todos',corte:'Todos',producto:'Todos'};
+let activeFilters={mes:'Todos',corte:2,producto:'Todos'};
 let consumoFilter='todos', filterUnivUsuario='Todas', filterEdicionUsuario='';
 
 function switchView(view,btn){
@@ -915,7 +915,7 @@ function renderEvolucion(){
   const tabla = `<div style="margin-top:24px"><table class="tendencia-table"><thead><tr><th>Edición</th><th>Enviados</th><th>Abrieron</th><th>% Apertura</th><th>Clics correo</th><th>Clics WA</th></tr></thead><tbody>${ev.map((e,i)=>{return `<tr><td class="td-bold">${e.mes}</td><td class="td-mono">${e.env}</td><td class="td-mono">${e.abr}</td><td class="td-mono" style="color:var(--celeste)">${e.ap.toFixed(1)}%</td><td class="td-mono">${e.clks}</td><td class="td-mono">${e.wa}</td></tr>`;}).join('')}</tbody></table></div>`;
 
   // ---- GRÁFICO SVG ----
-  const W=800, H=220, PL=56, PR=24, PT=24, PB=48;
+  const W=800, H=240, PL=56, PR=24, PT=24, PB=68;
   const gW=W-PL-PR, gH=H-PT-PB;
   const vals=ev.map(e=>e.ap);
   const minV=Math.max(0, Math.min(...vals)-10);
@@ -965,17 +965,23 @@ function renderEvolucion(){
     </g>`;
   }).join('');
 
-  // Etiquetas de valor sobre cada punto
+  // Etiquetas de valor — % apertura ARRIBA del punto, clics ABAJO separados
   const labels=pts.map((p,i)=>{
     const prev=pts[i-1];
     const diff=prev?(p.ap-prev.ap):null;
     const color=diff===null?'#8a9ab5':diff>=0?'#4ade80':'#f87171';
-    return `<text x="${p.x}" y="${p.y-12}" text-anchor="middle" font-size="11" fill="${color}" font-family="Raleway,sans-serif" font-weight="800">${p.ap.toFixed(1)}%</text>`;
+    // Siempre arriba del punto con suficiente margen
+    return `<text x="${p.x}" y="${p.y-14}" text-anchor="middle" font-size="11" fill="${color}" font-family="Raleway,sans-serif" font-weight="800">${p.ap.toFixed(1)}%</text>`;
   }).join('');
 
   // Línea de clics (secundaria, más tenue)
   const circlesClk=ptsClk.map((p,i)=>`<circle cx="${p.x}" cy="${p.y}" r="3.5" fill="#3B6ADC" stroke="#18233c" stroke-width="1.5"/>`).join('');
-  const labelsClk=ptsClk.map((p,i)=>`<text x="${p.x}" y="${p.y+18}" text-anchor="middle" font-size="9" fill="#4D9AEC" font-family="Nunito,sans-serif" font-weight="600">${p.clks} clics</text>`).join('');
+  // Clics siempre debajo del punto de clics con margen fijo desde la parte inferior del gráfico
+  const labelsClk=ptsClk.map((p,i)=>{
+    // Posición fija en la parte inferior para evitar solapamiento con etiquetas de apertura
+    const yPos=PT+gH+16;
+    return `<text x="${p.x}" y="${yPos}" text-anchor="middle" font-size="9" fill="#4D9AEC" font-family="Nunito,sans-serif" font-weight="600">${p.clks} clics</text>`;
+  }).join('');
 
   const svg=`
   <div style="margin-top:24px;margin-bottom:8px;display:flex;align-items:center;gap:20px">
