@@ -888,10 +888,14 @@ function renderHallazgos(){
   if(univsSinClics.length>0) h.push({tipo:'neutro',icon:'📭',titulo:(univsSinClics.length===1?'1 universidad abrió':''+univsSinClics.length+' universidades abrieron')+' el correo pero no interactuó con ningún producto',detalle:univsSinClics.join(', ')+' abrieron el correo en '+mesActual+' pero no hicieron clic en ningún enlace.',valor:''+univsSinClics.length,clase:'neutral'});
 
   // Canal más efectivo
-  if(tcc>0||tcw>0){
-    var canalTop=tcc>=tcw?'Correo':'WhatsApp';
-    var vTop=tcc>=tcw?tcc:tcw, vOtro=tcc>=tcw?tcw:tcc;
-    h.push({tipo:'neutro',icon:'📊',titulo:'El '+canalTop+' fue el canal más efectivo en '+mesActual,detalle:'Generó '+vTop+' clics vs. '+vOtro+' por '+(tcc>=tcw?'WhatsApp':'Correo')+'.',valor:vTop+' clics',clase:'neutral'});
+  var tccH=sum(allData.filter(function(d){return d.mes===mesActual&&d.corte===cMax&&d.canal==='Correo'&&d.universidad!=='General';}).map(function(d){return d.totalClicks;}));
+  var waRowsH=allData.filter(function(d){return d.mes===mesActual&&d.corte===cMax&&d.canal==='WhatsApp';});
+  var waUnivH=waRowsH.filter(function(d){return d.universidad!=='General';});
+  var tcwH=waUnivH.length>0?sum(waUnivH.map(function(d){return d.totalClicks;})):sum(waRowsH.filter(function(d){return d.universidad==='General';}).map(function(d){return d.totalClicks;}));
+  if(tccH>0||tcwH>0){
+    var canalTop=tccH>=tcwH?'Correo':'WhatsApp';
+    var vTop=tccH>=tcwH?tccH:tcwH, vOtro=tccH>=tcwH?tcwH:tccH;
+    h.push({tipo:'neutro',icon:'📊',titulo:'El '+canalTop+' fue el canal más efectivo en '+mesActual,detalle:'Generó '+vTop+' clics vs. '+vOtro+' por '+(tccH>=tcwH?'WhatsApp':'Correo')+'.',valor:vTop+' clics',clase:'neutral'});
   }
 
   if(!h.length){document.getElementById('hallazgosContainer').innerHTML='<div style="padding:24px;text-align:center;color:var(--text-dim);font-family:Nunito,sans-serif;font-size:12px;">Se necesitan al menos dos ediciones para generar hallazgos.</div>';return;}
